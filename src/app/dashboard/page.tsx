@@ -2,7 +2,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, Calendar, Users } from "lucide-react";
+import { Plus, TrendingUp, Calendar, Users, Euro } from "lucide-react";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { type Currency } from "@/lib/currency";
+import { getUserPreferencesWithDefaults } from "@/lib/user-preferences";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -51,8 +54,28 @@ export default async function DashboardPage() {
     0
   );
 
+  // Calculer les revenus totaux
+  const totalRevenue = properties.reduce(
+    (acc, property) =>
+      acc +
+      property.rooms.reduce(
+        (roomAcc, room) =>
+          roomAcc +
+          room.reservations.reduce(
+            (resAcc, reservation) =>
+              resAcc +
+              (reservation.totalPrice ? Number(reservation.totalPrice) : 0),
+            0
+          ),
+        0
+      ),
+    0
+  );
+
+  const preferences = getUserPreferencesWithDefaults(userPreferences);
+  const currency = preferences.currency;
   const unitTerminology =
-    userPreferences?.establishmentType === "hotel" ? "chambres" : "espaces";
+    preferences.establishmentType === "hotel" ? "chambres" : "espaces";
 
   return (
     <div className="p-6">
@@ -79,67 +102,35 @@ export default async function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-airbnb-dark-gray">
-                Propriétés
-              </p>
-              <p className="text-3xl font-bold text-airbnb-charcoal">
-                {properties.length}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Propriétés"
+          value={properties.length}
+          icon={<TrendingUp className="h-5 w-5" />}
+          isMonetary={false}
+        />
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-airbnb-dark-gray">
-                Total {unitTerminology}
-              </p>
-              <p className="text-3xl font-bold text-airbnb-charcoal">
-                {totalRooms}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title={unitTerminology}
+          value={totalRooms}
+          icon={<Users className="h-5 w-5" />}
+          isMonetary={false}
+        />
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-airbnb-dark-gray">
-                Réservations actives
-              </p>
-              <p className="text-3xl font-bold text-airbnb-charcoal">
-                {totalReservations}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-airbnb-red/10 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-airbnb-red" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Réservations"
+          value={totalReservations}
+          icon={<Calendar className="h-5 w-5" />}
+          isMonetary={false}
+        />
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-airbnb-dark-gray">
-                Taux d&apos;occupation
-              </p>
-              <p className="text-3xl font-bold text-airbnb-charcoal">78%</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Revenus totaux"
+          value={totalRevenue}
+          currency={currency}
+          icon={<Euro className="h-5 w-5" />}
+          showTrend={false}
+          isMonetary={true}
+        />
       </div>
 
       {/* Content Grid */}

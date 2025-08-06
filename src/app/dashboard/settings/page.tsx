@@ -1,6 +1,35 @@
-import { Settings } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { SettingsForm } from "@/components/settings/SettingsForm";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getServerSession(authOptions);
+
+  // Récupérer les préférences utilisateur
+  const userPreferences = await prisma.userPreferences.findUnique({
+    where: { userId: session!.user.id },
+  });
+
+  // Créer des préférences par défaut si elles n'existent pas
+  const preferences = userPreferences
+    ? {
+        id: userPreferences.id,
+        userId: userPreferences.userId,
+        establishmentType: userPreferences.establishmentType,
+        preferredLanguage: userPreferences.preferredLanguage,
+        currency: userPreferences.currency,
+        onboardingCompleted: userPreferences.onboardingCompleted,
+      }
+    : {
+        id: "",
+        userId: session!.user.id,
+        establishmentType: "hotel",
+        preferredLanguage: "fr",
+        currency: "EUR",
+        onboardingCompleted: false,
+      };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-8">
@@ -14,15 +43,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="text-center py-16">
-        <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-airbnb-charcoal mb-2">
-          Paramètres en développement
-        </h3>
-        <p className="text-airbnb-dark-gray">
-          La page de paramètres sera disponible bientôt
-        </p>
-      </div>
+      <SettingsForm initialPreferences={preferences} />
     </div>
   );
 }

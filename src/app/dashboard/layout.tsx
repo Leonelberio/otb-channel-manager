@@ -15,11 +15,26 @@ export default async function DashboardLayout({
     redirect("/auth/signin");
   }
 
-  // Vérifier si l'onboarding est complété
-  const userPreferences = await prisma.userPreferences.findUnique({
+  // Vérifier si l'utilisateur a des préférences
+  let userPreferences = await prisma.userPreferences.findUnique({
     where: { userId: session.user.id },
   });
 
+  // Si l'utilisateur n'a pas de préférences du tout, créer des préférences par défaut
+  if (!userPreferences) {
+    // Utiliser une requête SQL brute pour inclure le champ currency
+    await prisma.$executeRaw`
+      INSERT INTO user_preferences (id, user_id, establishment_type, preferred_language, currency, onboarding_completed)
+      VALUES (cuid(), ${session.user.id}, 'hotel', 'fr', 'EUR', false)
+    `;
+
+    // Récupérer les préférences créées
+    userPreferences = await prisma.userPreferences.findUnique({
+      where: { userId: session.user.id },
+    });
+  }
+
+  // Rediriger vers l'onboarding seulement si l'utilisateur n'a pas complété l'onboarding
   if (!userPreferences?.onboardingCompleted) {
     redirect("/onboarding");
   }

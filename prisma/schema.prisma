@@ -24,6 +24,7 @@ model User {
   // Relations
   ownedOrganisations Organisation[]     @relation("OrganisationOwner")
   userOrganisations  UserOrganisation[]
+  integrations       Integration[]
 
   // NextAuth fields
   accounts Account[]
@@ -102,11 +103,13 @@ model Room {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  equipments     Equipment[]
-  checkInOut     CheckInOut?
-  availabilities Availability[]
-  reservations   Reservation[]
+  property        Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  equipments      Equipment[]
+  checkInOut      CheckInOut?
+  availabilities  Availability[]
+  reservations    Reservation[]
+  externalEvents  ExternalEvent[]
+  calendarConfigs CalendarConfig[]
 
   @@map("rooms")
 }
@@ -238,7 +241,76 @@ model UserPreferences {
   userId              String  @unique @map("user_id")
   establishmentType   String  @default("hotel") @map("establishment_type") // "hotel" ou "espace"
   preferredLanguage   String  @default("fr") @map("preferred_language")
+  currency            String  @default("EUR") // "EUR", "USD", "XOF" (CFA)
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
 
   @@map("user_preferences")
+}
+
+// ============ INTÉGRATIONS & CALENDRIER ============
+
+model Integration {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  type         String // "google_calendar", "airbnb", "booking", "expedia"
+  name         String // Nom personnalisé de l'intégration
+  isActive     Boolean   @default(true) @map("is_active")
+  accessToken  String?   @map("access_token") @db.Text
+  refreshToken String?   @map("refresh_token") @db.Text
+  expiresAt    DateTime? @map("expires_at")
+  lastSyncAt   DateTime? @map("last_sync_at")
+  settings     Json? // Configuration spécifique à chaque type d'intégration
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events          ExternalEvent[]
+  calendarConfigs CalendarConfig[]
+
+  @@unique([userId, type])
+  @@map("integrations")
+}
+
+model CalendarConfig {
+  id            String   @id @default(cuid())
+  integrationId String   @map("integration_id")
+  roomId        String   @map("room_id")
+  calendarId    String   @map("calendar_id") // ID de l'agenda Google Calendar
+  calendarName  String   @map("calendar_name") // Nom de l'agenda pour l'affichage
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, roomId])
+  @@map("calendar_configs")
+}
+
+model ExternalEvent {
+  id            String   @id @default(cuid())
+  integrationId String   @map("integration_id")
+  externalId    String   @map("external_id") // ID de l'événement sur la plateforme externe
+  title         String
+  description   String?
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  eventType     String   @map("event_type") // "reservation", "blocked", "maintenance", "personal"
+  guestName     String?  @map("guest_name")
+  guestEmail    String?  @map("guest_email")
+  roomId        String?  @map("room_id") // Lien vers une chambre si applicable
+  status        String   @default("confirmed") // "confirmed", "pending", "cancelled"
+  metadata      Json? // Données supplémentaires spécifiques à la plateforme
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  room        Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@unique([integrationId, externalId])
+  @@map("external_events")
 }

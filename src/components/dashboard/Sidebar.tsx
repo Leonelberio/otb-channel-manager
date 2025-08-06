@@ -13,8 +13,10 @@ import {
   Settings,
   Users,
   ChevronDown,
+  ChevronRight,
   LogOut,
   User,
+  Wrench,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,6 +41,11 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [propertiesExpanded, setPropertiesExpanded] = useState(
+    pathname.startsWith("/dashboard/properties") ||
+      pathname.startsWith("/dashboard/rooms") ||
+      pathname.startsWith("/dashboard/equipments")
+  );
 
   const unitTerminology =
     userPreferences?.establishmentType === "hotel" ? "Chambres" : "Espaces";
@@ -54,13 +61,28 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
       name: "Propriétés",
       href: "/dashboard/properties",
       icon: Building2,
-      current: pathname.startsWith("/dashboard/properties"),
-    },
-    {
-      name: unitTerminology,
-      href: "/dashboard/rooms",
-      icon: BookOpen,
-      current: pathname.startsWith("/dashboard/rooms"),
+      current:
+        pathname.startsWith("/dashboard/properties") ||
+        pathname.startsWith("/dashboard/rooms") ||
+        pathname.startsWith("/dashboard/equipments"),
+      hasSubmenu: true,
+      submenu: [
+        {
+          name: "Mes propriétés",
+          href: "/dashboard/properties",
+          current: pathname === "/dashboard/properties",
+        },
+        {
+          name: unitTerminology,
+          href: "/dashboard/rooms",
+          current: pathname.startsWith("/dashboard/rooms"),
+        },
+        {
+          name: "Équipements",
+          href: "/dashboard/equipments",
+          current: pathname.startsWith("/dashboard/equipments"),
+        },
+      ],
     },
     {
       name: "Planning",
@@ -134,6 +156,53 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
         <div className="space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
+
+            if (item.hasSubmenu && !isCollapsed) {
+              return (
+                <div key={item.name}>
+                  {/* Menu principal avec submenu */}
+                  <button
+                    onClick={() => setPropertiesExpanded(!propertiesExpanded)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      item.current
+                        ? "bg-airbnb-red text-white"
+                        : "text-airbnb-charcoal hover:bg-gray-100"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Icon className="h-5 w-5" />
+                      <span>{item.name}</span>
+                    </div>
+                    {propertiesExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  {/* Sous-menu */}
+                  {propertiesExpanded && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {item.submenu?.map((subItem) => (
+                        <Link
+                          key={subItem.name}
+                          href={subItem.href}
+                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                            subItem.current
+                              ? "bg-airbnb-red/10 text-airbnb-red font-medium"
+                              : "text-airbnb-dark-gray hover:bg-gray-50 hover:text-airbnb-charcoal"
+                          }`}
+                        >
+                          {subItem.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Menu simple ou menu collapsed
             return (
               <Link
                 key={item.name}
