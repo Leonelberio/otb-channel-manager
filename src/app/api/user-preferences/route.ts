@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
           preferredLanguage: "fr",
           currency: "EUR",
           onboardingCompleted: false,
+          widgetPrimaryColor: "#8ABF37",
+          widgetButtonColor: "#8ABF37",
         },
       });
       return NextResponse.json({ preferences: defaultPreferences });
@@ -49,7 +51,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { establishmentType, preferredLanguage, currency } = body;
+    const {
+      establishmentType,
+      preferredLanguage,
+      currency,
+      widgetPrimaryColor,
+      widgetButtonColor,
+    } = body;
 
     // Validation
     if (!establishmentType || !preferredLanguage || !currency) {
@@ -79,6 +87,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Devise invalide" }, { status: 400 });
     }
 
+    // Validation des couleurs (format hexadécimal)
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (widgetPrimaryColor && !hexColorRegex.test(widgetPrimaryColor)) {
+      return NextResponse.json(
+        { error: "Couleur principale invalide" },
+        { status: 400 }
+      );
+    }
+
+    if (widgetButtonColor && !hexColorRegex.test(widgetButtonColor)) {
+      return NextResponse.json(
+        { error: "Couleur de bouton invalide" },
+        { status: 400 }
+      );
+    }
+
     // Mettre à jour ou créer les préférences utilisateur
     const preferences = await prisma.userPreferences.upsert({
       where: { userId: session.user.id },
@@ -86,12 +110,16 @@ export async function PUT(request: NextRequest) {
         establishmentType,
         preferredLanguage,
         currency,
+        widgetPrimaryColor: widgetPrimaryColor || "#8ABF37",
+        widgetButtonColor: widgetButtonColor || "#8ABF37",
       },
       create: {
         userId: session.user.id,
         establishmentType,
         preferredLanguage,
         currency,
+        widgetPrimaryColor: widgetPrimaryColor || "#8ABF37",
+        widgetButtonColor: widgetButtonColor || "#8ABF37",
       },
     });
 

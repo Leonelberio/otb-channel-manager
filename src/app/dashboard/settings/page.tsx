@@ -11,6 +11,16 @@ export default async function SettingsPage() {
     where: { userId: session!.user.id },
   });
 
+  // Récupérer l'organisation de l'utilisateur
+  const userOrganisation = await prisma.userOrganisation.findFirst({
+    where: { userId: session!.user.id },
+    include: {
+      organisation: {
+        select: { id: true },
+      },
+    },
+  });
+
   // Créer des préférences par défaut si elles n'existent pas
   const preferences = userPreferences
     ? {
@@ -20,6 +30,8 @@ export default async function SettingsPage() {
         preferredLanguage: userPreferences.preferredLanguage,
         currency: userPreferences.currency,
         onboardingCompleted: userPreferences.onboardingCompleted,
+        widgetPrimaryColor: userPreferences.widgetPrimaryColor || "#8ABF37",
+        widgetButtonColor: userPreferences.widgetButtonColor || "#8ABF37",
       }
     : {
         id: "",
@@ -28,7 +40,11 @@ export default async function SettingsPage() {
         preferredLanguage: "fr",
         currency: "EUR",
         onboardingCompleted: false,
+        widgetPrimaryColor: "#8ABF37",
+        widgetButtonColor: "#8ABF37",
       };
+
+  const organizationId = userOrganisation?.organisation?.id || "";
 
   return (
     <div className="p-6">
@@ -38,12 +54,16 @@ export default async function SettingsPage() {
             Paramètres
           </h1>
           <p className="text-airbnb-dark-gray mt-2">
-            Configurez votre compte et vos préférences
+            Configurez votre compte, vos préférences et votre widget de
+            réservation
           </p>
         </div>
       </div>
 
-      <SettingsForm initialPreferences={preferences} />
+      <SettingsForm
+        initialPreferences={preferences}
+        organizationId={organizationId}
+      />
     </div>
   );
 }
