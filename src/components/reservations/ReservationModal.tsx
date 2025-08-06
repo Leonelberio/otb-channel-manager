@@ -39,6 +39,8 @@ interface Reservation {
   guestEmail?: string;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  duration?: number;
   status: string;
   totalPrice?: number;
   notes?: string;
@@ -68,6 +70,31 @@ const RESERVATION_STATUSES = [
   { value: "COMPLETED", label: "Terminée", color: "bg-blue-100 text-blue-800" },
 ];
 
+const TIME_SLOTS = [
+  "08:00",
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+  "18:00",
+];
+
+const DURATION_OPTIONS = [
+  { value: 1, label: "1 heure" },
+  { value: 2, label: "2 heures" },
+  { value: 3, label: "3 heures" },
+  { value: 4, label: "4 heures" },
+  { value: 5, label: "5 heures" },
+  { value: 6, label: "6 heures" },
+  { value: 7, label: "7 heures" },
+  { value: 8, label: "Journée complète" },
+];
+
 export function ReservationModal({
   isOpen,
   onClose,
@@ -82,6 +109,8 @@ export function ReservationModal({
     guestEmail: "",
     startDate: "",
     endDate: "",
+    startTime: "",
+    duration: 1,
     status: "PENDING",
     totalPrice: "",
     notes: "",
@@ -96,6 +125,8 @@ export function ReservationModal({
         guestEmail: reservation.guestEmail || "",
         startDate: new Date(reservation.startDate).toISOString().split("T")[0],
         endDate: new Date(reservation.endDate).toISOString().split("T")[0],
+        startTime: reservation.startTime || "",
+        duration: reservation.duration || 1,
         status: reservation.status,
         totalPrice: reservation.totalPrice?.toString() || "",
         notes: reservation.notes || "",
@@ -107,6 +138,8 @@ export function ReservationModal({
         guestEmail: "",
         startDate: "",
         endDate: "",
+        startTime: "",
+        duration: 1,
         status: "PENDING",
         totalPrice: "",
         notes: "",
@@ -120,20 +153,46 @@ export function ReservationModal({
       if (room) {
         const startDate = new Date(formData.startDate);
         const endDate = new Date(formData.endDate);
-        const nights = Math.ceil(
+        const days = Math.ceil(
           (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
         );
-        if (nights > 0) {
-          const total = nights * room.pricePerNight;
-          setFormData((prev) => ({ ...prev, totalPrice: total.toString() }));
+
+        let total = 0;
+
+        if (days === 0) {
+          // Même jour - calcul basé sur la durée
+          if (formData.duration >= 8) {
+            total = room.pricePerNight; // Prix journée complète
+          } else {
+            total = Math.round((room.pricePerNight / 24) * formData.duration); // Prix horaire
+          }
+        } else {
+          // Plusieurs jours
+          total = room.pricePerNight * days;
         }
+
+        setFormData((prev) => ({ ...prev, totalPrice: total.toString() }));
       }
     }
   };
 
   useEffect(() => {
     calculateTotalPrice();
-  }, [formData.roomId, formData.startDate, formData.endDate]);
+  }, [
+    formData.roomId,
+    formData.startDate,
+    formData.endDate,
+    formData.duration,
+  ]);
+
+  const calculateEndTime = () => {
+    if (!formData.startTime || !formData.duration) return "";
+    const [hours, minutes] = formData.startTime.split(":").map(Number);
+    const endHours = (hours + formData.duration) % 24;
+    return `${endHours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   const handleSave = async () => {
     if (
@@ -146,8 +205,21 @@ export function ReservationModal({
       return;
     }
 
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      toast.error("La date de fin doit être postérieure à la date de début");
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+      toast.error(
+        "La date de fin doit être postérieure ou égale à la date de début"
+      );
+      return;
+    }
+
+    // Si c'est la même journée, vérifier qu'une heure et une durée sont définies
+    if (
+      formData.startDate === formData.endDate &&
+      (!formData.startTime || !formData.duration)
+    ) {
+      toast.error(
+        "Pour une réservation sur la même journée, veuillez spécifier l'heure et la durée"
+      );
       return;
     }
 
@@ -292,6 +364,65 @@ export function ReservationModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label htmlFor="startTime">Heure de début</Label>
+                <Select
+                  value={formData.startTime}
+                  onValueChange={(value: string) =>
+                    setFormData((prev) => ({ ...prev, startTime: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir une heure" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map((time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="duration">Durée</Label>
+                <Select
+                  value={formData.duration.toString()}
+                  onValueChange={(value: string) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      duration: parseInt(value),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir la durée" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value.toString()}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {formData.startTime && formData.duration && (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Horaires :</span>{" "}
+                  {formData.startTime} - {calculateEndTime()}
+                  {formData.duration >= 8 && " (Journée complète)"}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="status">Statut</Label>
                 <Select
                   value={formData.status}
@@ -337,8 +468,29 @@ export function ReservationModal({
                 />
                 {selectedRoom && formData.startDate && formData.endDate && (
                   <p className="text-xs text-gray-500">
-                    Calculé automatiquement:{" "}
-                    {formatCurrency(selectedRoom.pricePerNight, currency)}/nuit
+                    {formData.startDate === formData.endDate ? (
+                      <>
+                        Calculé automatiquement:{" "}
+                        {formData.duration >= 8
+                          ? `${formatCurrency(
+                              selectedRoom.pricePerNight,
+                              currency
+                            )} (journée)`
+                          : `${formatCurrency(
+                              Math.round(
+                                (selectedRoom.pricePerNight / 24) *
+                                  formData.duration
+                              ),
+                              currency
+                            )} (${formData.duration}h)`}
+                      </>
+                    ) : (
+                      <>
+                        Calculé automatiquement:{" "}
+                        {formatCurrency(selectedRoom.pricePerNight, currency)}
+                        /nuit
+                      </>
+                    )}
                   </p>
                 )}
               </div>

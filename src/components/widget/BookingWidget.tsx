@@ -77,12 +77,18 @@ export function BookingWidget({ config }: BookingWidgetProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | undefined>(
+    undefined
+  );
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [duration, setDuration] = useState<number>(1);
   const [showQuote, setShowQuote] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currency, setCurrency] = useState<Currency>("EUR");
+  const [existingReservations, setExistingReservations] = useState<
+    Array<{ startDate: string; endDate: string }>
+  >([]);
 
   // Form fields for booking
   const [guestName, setGuestName] = useState("");
@@ -92,6 +98,12 @@ export function BookingWidget({ config }: BookingWidgetProps) {
   useEffect(() => {
     fetchRooms();
   }, [config.organizationId]);
+
+  useEffect(() => {
+    if (selectedRoom) {
+      fetchReservations();
+    }
+  }, [selectedRoom]);
 
   const fetchRooms = async () => {
     try {
@@ -111,14 +123,75 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     }
   };
 
+  const fetchReservations = async () => {
+    try {
+      const response = await fetch(
+        `/api/widget/reservations?orgId=${config.organizationId}&roomId=${selectedRoom?.id}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setExistingReservations(data.reservations || []);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des réservations:", error);
+    }
+  };
+
+  // Fonction pour vérifier si une date est réservée
+  const isDateReserved = (date: Date) => {
+    const dateStr = date.toISOString().split("T")[0];
+    return existingReservations.some((reservation) => {
+      const start = new Date(reservation.startDate);
+      const end = new Date(reservation.endDate);
+      const checkDate = new Date(dateStr);
+      return checkDate >= start && checkDate < end;
+    });
+  };
+
+  // Fonction pour désactiver les dates dans le calendrier
+  const disabledDates = (date: Date) => {
+    return date < new Date() || isDateReserved(date);
+  };
+
+  // Fonction pour vérifier si un créneau horaire est disponible
+  const isTimeSlotAvailable = (time: string) => {
+    if (!selectedDate || !selectedRoom) return true;
+
+    const selectedDateTime = new Date(selectedDate);
+    const [hours, minutes] = time.split(":").map(Number);
+    selectedDateTime.setHours(hours, minutes, 0, 0);
+
+    return !existingReservations.some((reservation) => {
+      const start = new Date(reservation.startDate);
+      const end = new Date(reservation.endDate);
+      return selectedDateTime >= start && selectedDateTime < end;
+    });
+  };
+
+  // Filtrer les créneaux horaires disponibles
+  const availableTimeSlots = timeSlots.filter(isTimeSlotAvailable);
+
   const calculateQuote = () => {
-    if (!selectedRoom || !selectedDate || !selectedTime) return 0;
+    if (!selectedRoom || !selectedDate || !selectedEndDate || !selectedTime)
+      return 0;
 
     const basePrice = selectedRoom.pricePerNight;
-    if (duration >= 8) {
-      return basePrice; // Prix journée
+    const start = new Date(selectedDate);
+    const end = new Date(selectedEndDate);
+    const days = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (days === 0) {
+      // Même jour - calcul horaire
+      if (duration >= 8) {
+        return basePrice; // Prix journée
+      } else {
+        return Math.round((basePrice / 24) * duration); // Prix horaire
+      }
     } else {
-      return Math.round((basePrice / 24) * duration); // Prix horaire
+      // Plusieurs jours
+      return basePrice * days;
     }
   };
 
@@ -132,27 +205,40 @@ export function BookingWidget({ config }: BookingWidgetProps) {
   };
 
   const handleGetQuote = () => {
-    if (selectedRoom && selectedDate && selectedTime) {
+    if (selectedRoom && selectedDate && selectedEndDate && selectedTime) {
       setShowQuote(true);
     }
   };
 
   const handleBooking = async () => {
-    if (!selectedRoom || !selectedDate || !selectedTime || !guestName) {
+    if (
+      !selectedRoom ||
+      !selectedDate ||
+      !selectedEndDate ||
+      !selectedTime ||
+      !guestName
+    ) {
       toast.error("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    if (selectedDate >= selectedEndDate) {
+      toast.error("La date de fin doit être postérieure à la date de début");
       return;
     }
 
     setIsSubmitting(true);
     try {
       const startDate = new Date(selectedDate);
-      const endDate = new Date(selectedDate);
+      const endDate = new Date(selectedEndDate);
 
-      // Ajouter la durée à la date de fin
-      if (duration >= 8) {
-        endDate.setDate(endDate.getDate() + 1);
-      } else {
-        endDate.setHours(endDate.getHours() + duration);
+      // Si c'est la même journée, ajouter la durée
+      if (startDate.toDateString() === endDate.toDateString()) {
+        if (duration >= 8) {
+          endDate.setDate(endDate.getDate() + 1);
+        } else {
+          endDate.setHours(endDate.getHours() + duration);
+        }
       }
 
       const response = await fetch("/api/widget/booking", {
@@ -177,12 +263,14 @@ export function BookingWidget({ config }: BookingWidgetProps) {
         // Reset form
         setSelectedRoom(null);
         setSelectedDate(undefined);
+        setSelectedEndDate(undefined);
         setSelectedTime("");
         setDuration(1);
         setGuestName("");
         setGuestEmail("");
         setNotes("");
         setShowQuote(false);
+        setExistingReservations([]);
       } else {
         const error = await response.json();
         toast.error(error.error || "Erreur lors de la réservation");
@@ -240,29 +328,46 @@ export function BookingWidget({ config }: BookingWidgetProps) {
               onValueChange={(value) => {
                 const room = rooms.find((r) => r.id === value);
                 setSelectedRoom(room || null);
+                // Réinitialiser les sélections quand l'espace change
+                if (!room) {
+                  setSelectedDate(undefined);
+                  setSelectedEndDate(undefined);
+                  setSelectedTime("");
+                  setDuration(1);
+                  setShowQuote(false);
+                  setExistingReservations([]);
+                }
               }}
             >
-              <SelectTrigger className="w-full h-14 p-3">
-                <SelectValue placeholder="Sélectionner un espace">
+              <SelectTrigger className="w-full min-h-[56px] p-3">
+                <SelectValue
+                  placeholder="Sélectionner un espace"
+                  className="text-sm"
+                >
                   {selectedRoom ? (
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900">
+                    <div className="flex items-center w-full">
+                      <span className="font-medium text-gray-900 text-sm truncate max-w-full">
                         {selectedRoom.propertyName} - {selectedRoom.name}
                       </span>
                     </div>
                   ) : (
-                    "Sélectionner un espace"
+                    <span className="text-sm text-muted-foreground">
+                      Choisir un espace
+                    </span>
                   )}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-w-[300px]">
                 {rooms.map((room) => (
-                  <SelectItem key={room.id} value={room.id}>
-                    <div className="flex flex-col">
-                      <div className="font-medium text-gray-900">
-                        {room.propertyName} - {room.name}
+                  <SelectItem key={room.id} value={room.id} className="py-2">
+                    <div className="flex flex-col space-y-1">
+                      <div className="font-medium text-gray-900 text-sm leading-tight">
+                        {room.propertyName}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="font-medium text-gray-900 text-sm leading-tight">
+                        {room.name}
+                      </div>
+                      <div className="text-xs text-gray-600">
                         {formatCurrency(room.pricePerNight, currency)}/jour
                       </div>
                     </div>
@@ -279,36 +384,106 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                 className="w-5 h-5 mr-2"
                 style={{ color: config.primaryColor }}
               />
-              2. Sélectionnez votre date
+              2. Sélectionnez vos dates
             </h3>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal p-3 h-auto",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? (
-                    format(selectedDate, "PPP", { locale: fr })
-                  ) : (
-                    <span>Sélectionner une date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                  locale={fr}
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de début
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={!selectedRoom}
+                      className={cn(
+                        "w-full justify-start text-left font-normal p-3 h-auto",
+                        !selectedDate && "text-muted-foreground",
+                        !selectedRoom && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? (
+                        format(selectedDate, "dd/MM/yyyy", { locale: fr })
+                      ) : (
+                        <span>
+                          {selectedRoom ? "Date début" : "Choisir un espace"}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        // Réinitialiser la date de fin si elle est antérieure à la nouvelle date de début
+                        if (date && selectedEndDate && date > selectedEndDate) {
+                          setSelectedEndDate(undefined);
+                        }
+                        // Réinitialiser l'heure si la date change
+                        setSelectedTime("");
+                        setShowQuote(false);
+                      }}
+                      disabled={disabledDates}
+                      initialFocus
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de fin
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={!selectedRoom || !selectedDate}
+                      className={cn(
+                        "w-full justify-start text-left font-normal p-3 h-auto",
+                        !selectedEndDate && "text-muted-foreground",
+                        (!selectedRoom || !selectedDate) &&
+                          "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedEndDate ? (
+                        format(selectedEndDate, "dd/MM/yyyy", { locale: fr })
+                      ) : (
+                        <span>
+                          {!selectedRoom
+                            ? "Choisir un espace"
+                            : !selectedDate
+                            ? "Choisir date début"
+                            : "Date fin"}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedEndDate}
+                      onSelect={(date) => {
+                        setSelectedEndDate(date);
+                        // Réinitialiser l'heure si la date de fin change
+                        setSelectedTime("");
+                        setShowQuote(false);
+                      }}
+                      disabled={(date) => {
+                        if (!selectedDate) return date < new Date();
+                        return date < selectedDate || isDateReserved(date);
+                      }}
+                      initialFocus
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
 
           {/* Step 3: Time and Duration */}
@@ -325,18 +500,47 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Heure de début
                 </label>
-                <Select value={selectedTime} onValueChange={setSelectedTime}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir une heure" />
+                <Select
+                  value={selectedTime}
+                  onValueChange={setSelectedTime}
+                  disabled={!selectedRoom || !selectedDate || !selectedEndDate}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      !selectedRoom ||
+                        !selectedDate ||
+                        (!selectedEndDate && "opacity-50 cursor-not-allowed")
+                    )}
+                  >
+                    <SelectValue
+                      placeholder={
+                        !selectedRoom
+                          ? "Choisir un espace"
+                          : !selectedDate
+                          ? "Choisir dates"
+                          : "Choisir heure"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {timeSlots.map((time) => (
-                      <SelectItem key={time} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
+                    {availableTimeSlots.length > 0 ? (
+                      availableTimeSlots.map((time) => (
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1 text-sm text-gray-500">
+                        Aucun créneau disponible
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
+                {selectedDate && availableTimeSlots.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Cette date est complètement réservée
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -345,9 +549,32 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                 <Select
                   value={duration.toString()}
                   onValueChange={(value) => setDuration(Number(value))}
+                  disabled={
+                    !selectedRoom ||
+                    !selectedDate ||
+                    !selectedEndDate ||
+                    !selectedTime
+                  }
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir la durée" />
+                  <SelectTrigger
+                    className={cn(
+                      !selectedRoom ||
+                        !selectedDate ||
+                        !selectedEndDate ||
+                        (!selectedTime && "opacity-50 cursor-not-allowed")
+                    )}
+                  >
+                    <SelectValue
+                      placeholder={
+                        !selectedRoom
+                          ? "Choisir un espace"
+                          : !selectedDate
+                          ? "Choisir dates"
+                          : !selectedTime
+                          ? "Choisir heure"
+                          : "Choisir durée"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {durationOptions.map((option) => (
@@ -366,7 +593,12 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
           <Button
             onClick={handleGetQuote}
-            disabled={!selectedRoom || !selectedDate || !selectedTime}
+            disabled={
+              !selectedRoom ||
+              !selectedDate ||
+              !selectedEndDate ||
+              !selectedTime
+            }
             className="w-full text-white py-3 text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: config.buttonColor }}
           >
@@ -376,7 +608,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
         {/* Right Side - Quote Display */}
         <div className="bg-gray-50 rounded-xl p-6">
-          {showQuote && selectedRoom && selectedDate ? (
+          {showQuote && selectedRoom && selectedDate && selectedEndDate ? (
             <div className="space-y-6">
               <h3 className="text-xl font-bold text-gray-900">Votre devis</h3>
 
@@ -388,25 +620,44 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Date:</span>
-                  <span className="font-semibold">
-                    {format(selectedDate, "PPP", { locale: fr })}
+                  <span className="text-gray-600">Période:</span>
+                  <span className="font-semibold text-sm">
+                    {format(selectedDate, "dd/MM/yyyy", { locale: fr })} -{" "}
+                    {format(selectedEndDate, "dd/MM/yyyy", { locale: fr })}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Horaires:</span>
-                  <span className="font-semibold">
-                    {selectedTime} - {calculateEndTime()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Durée:</span>
-                  <span className="font-semibold">
-                    {duration >= 8
-                      ? "Journée complète"
-                      : `${duration} heure${duration > 1 ? "s" : ""}`}
-                  </span>
-                </div>
+                {selectedDate.toDateString() ===
+                  selectedEndDate.toDateString() && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Horaires:</span>
+                      <span className="font-semibold">
+                        {selectedTime} - {calculateEndTime()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Durée:</span>
+                      <span className="font-semibold">
+                        {duration >= 8
+                          ? "Journée complète"
+                          : `${duration} heure${duration > 1 ? "s" : ""}`}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {selectedDate.toDateString() !==
+                  selectedEndDate.toDateString() && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Nombre de jours:</span>
+                    <span className="font-semibold">
+                      {Math.ceil(
+                        (selectedEndDate.getTime() - selectedDate.getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )}{" "}
+                      jour(s)
+                    </span>
+                  </div>
+                )}
 
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center text-lg font-bold">

@@ -22,6 +22,8 @@ export async function PUT(
       guestEmail,
       startDate,
       endDate,
+      startTime,
+      duration,
       status,
       totalPrice,
       notes,
@@ -93,9 +95,26 @@ export async function PUT(
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    if (start >= end) {
+    if (start > end) {
       return NextResponse.json(
-        { error: "La date de fin doit être postérieure à la date de début" },
+        {
+          error:
+            "La date de fin doit être postérieure ou égale à la date de début",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Si c'est la même journée, vérifier qu'une heure et une durée sont définies
+    if (
+      start.toDateString() === end.toDateString() &&
+      (!startTime || !duration)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Pour une réservation sur la même journée, veuillez spécifier l'heure et la durée",
+        },
         { status: 400 }
       );
     }
@@ -138,6 +157,8 @@ export async function PUT(
         guestEmail: guestEmail || null,
         startDate: start,
         endDate: end,
+        startTime: startTime || null,
+        duration: duration ? parseInt(duration) : null,
         status: status || "PENDING",
         totalPrice: totalPrice ? parseFloat(totalPrice) : null,
         notes: notes || null,
