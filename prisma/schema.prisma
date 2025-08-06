@@ -175,6 +175,8 @@ model Reservation {
   guestEmail String?           @map("guest_email")
   startDate  DateTime          @map("start_date") @db.Date
   endDate    DateTime          @map("end_date") @db.Date
+  startTime  String?           @map("start_time") // Format "HH:MM"
+  duration   Int? // Durée en heures
   status     ReservationStatus @default(PENDING)
   totalPrice Decimal?          @map("total_price") @db.Decimal(10, 2)
   notes      String?

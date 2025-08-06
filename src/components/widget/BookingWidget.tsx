@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Calendar as CalendarIcon,
   Building2,
@@ -28,7 +29,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 import { formatCurrency, type Currency } from "@/lib/currency";
 
 interface Room {
@@ -73,6 +74,45 @@ const durationOptions = [
   { value: 8, label: "Journée complète" },
 ];
 
+// Composant ToasterWrapper pour s'assurer que les toasts s'affichent correctement dans l'iframe
+function ToasterWrapper() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <Toaster
+      position="top-center"
+      richColors
+      closeButton
+      duration={4000}
+      style={{
+        zIndex: 999999,
+        position: "fixed",
+        top: "20px",
+        left: "50%",
+        transform: "translateX(-50%)",
+      }}
+      toastOptions={{
+        style: {
+          background: "white",
+          color: "black",
+          border: "1px solid #e5e7eb",
+          boxShadow:
+            "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+          minWidth: "300px",
+          padding: "12px 16px",
+        },
+      }}
+    />,
+    document.body
+  );
+}
+
 export function BookingWidget({ config }: BookingWidgetProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -104,6 +144,31 @@ export function BookingWidget({ config }: BookingWidgetProps) {
       fetchReservations();
     }
   }, [selectedRoom]);
+
+  // Vérifier les conflits en temps réel quand les sélections changent
+  useEffect(() => {
+    if (
+      showQuote &&
+      selectedRoom &&
+      selectedDate &&
+      selectedEndDate &&
+      selectedTime
+    ) {
+      const conflicts = checkConflicts();
+      if (conflicts) {
+        setShowQuote(false);
+        toast.error(
+          "Ce créneau horaire n'est plus disponible. Veuillez choisir un autre horaire ou une autre date."
+        );
+      }
+    }
+  }, [
+    selectedDate,
+    selectedEndDate,
+    selectedTime,
+    duration,
+    existingReservations,
+  ]);
 
   const fetchRooms = async () => {
     try {
@@ -153,23 +218,64 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     return date < new Date() || isDateReserved(date);
   };
 
-  // Fonction pour vérifier si un créneau horaire est disponible
-  const isTimeSlotAvailable = (time: string) => {
-    if (!selectedDate || !selectedRoom) return true;
+  // Fonction pour vérifier si un créneau horaire spécifique est disponible
+  const isTimeSlotAvailable = (time: string, date: Date) => {
+    if (!selectedRoom) return true;
 
-    const selectedDateTime = new Date(selectedDate);
+    const selectedDateTime = new Date(date);
     const [hours, minutes] = time.split(":").map(Number);
     selectedDateTime.setHours(hours, minutes, 0, 0);
 
     return !existingReservations.some((reservation) => {
       const start = new Date(reservation.startDate);
       const end = new Date(reservation.endDate);
+
+      // Si c'est la même date, vérifier les heures
+      if (start.toDateString() === date.toDateString()) {
+        const reservationStart = new Date(start);
+        const reservationEnd = new Date(end);
+
+        // Vérifier si le créneau demandé chevauche la réservation existante
+        return (
+          selectedDateTime < reservationEnd &&
+          selectedDateTime.getTime() + duration * 60 * 60 * 1000 >
+            reservationStart.getTime()
+        );
+      }
+
+      // Pour les dates différentes, vérifier si la date est dans la période
       return selectedDateTime >= start && selectedDateTime < end;
     });
   };
 
-  // Filtrer les créneaux horaires disponibles
-  const availableTimeSlots = timeSlots.filter(isTimeSlotAvailable);
+  // Fonction pour vérifier les conflits en temps réel
+  const checkConflicts = () => {
+    if (!selectedRoom || !selectedDate || !selectedEndDate || !selectedTime) {
+      return null;
+    }
+
+    const startDateTime = new Date(selectedDate);
+    const [hours, minutes] = selectedTime.split(":").map(Number);
+    startDateTime.setHours(hours, minutes, 0, 0);
+
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setHours(endDateTime.getHours() + duration);
+
+    const conflicts = existingReservations.filter((reservation) => {
+      const reservationStart = new Date(reservation.startDate);
+      const reservationEnd = new Date(reservation.endDate);
+
+      // Vérifier le chevauchement
+      return startDateTime < reservationEnd && endDateTime > reservationStart;
+    });
+
+    return conflicts.length > 0 ? conflicts : null;
+  };
+
+  // Filtrer les créneaux horaires disponibles pour la date sélectionnée
+  const availableTimeSlots = timeSlots.filter((time) =>
+    isTimeSlotAvailable(time, selectedDate || new Date())
+  );
 
   const calculateQuote = () => {
     if (!selectedRoom || !selectedDate || !selectedEndDate || !selectedTime)
@@ -206,6 +312,16 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
   const handleGetQuote = () => {
     if (selectedRoom && selectedDate && selectedEndDate && selectedTime) {
+      // Vérifier les conflits en temps réel
+      const conflicts = checkConflicts();
+
+      if (conflicts) {
+        toast.error(
+          "Ce créneau horaire n'est pas disponible. Veuillez choisir un autre horaire ou une autre date."
+        );
+        return;
+      }
+
       setShowQuote(true);
     }
   };
@@ -222,8 +338,19 @@ export function BookingWidget({ config }: BookingWidgetProps) {
       return;
     }
 
-    if (selectedDate >= selectedEndDate) {
-      toast.error("La date de fin doit être postérieure à la date de début");
+    if (selectedDate > selectedEndDate) {
+      toast.error(
+        "La date de fin doit être postérieure ou égale à la date de début"
+      );
+      return;
+    }
+
+    // Vérifier les conflits en temps réel avant d'envoyer la requête
+    const conflicts = checkConflicts();
+    if (conflicts) {
+      toast.error(
+        "Ce créneau horaire n'est plus disponible. Veuillez choisir un autre horaire ou une autre date."
+      );
       return;
     }
 
@@ -252,6 +379,8 @@ export function BookingWidget({ config }: BookingWidgetProps) {
           guestEmail: guestEmail || null,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
+          startTime: selectedTime || null,
+          duration: duration || null,
           totalPrice: calculateQuote(),
           notes: notes || null,
           organizationId: config.organizationId,
@@ -273,7 +402,16 @@ export function BookingWidget({ config }: BookingWidgetProps) {
         setExistingReservations([]);
       } else {
         const error = await response.json();
-        toast.error(error.error || "Erreur lors de la réservation");
+        console.log("Erreur API:", response.status, error);
+
+        // Gestion spécifique des erreurs
+        if (response.status === 409) {
+          toast.error(
+            "Ce créneau horaire n'est plus disponible. Veuillez choisir un autre horaire ou une autre date."
+          );
+        } else {
+          toast.error(error.error || "Erreur lors de la réservation");
+        }
       }
     } catch (error) {
       console.error("Erreur:", error);
@@ -285,6 +423,12 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
   const handleCallback = () => {
     toast.info("Fonctionnalité de rappel bientôt disponible !");
+  };
+
+  const testToast = () => {
+    toast.success("Test de toast réussi !");
+    toast.error("Test d'erreur !");
+    toast.info("Test d'information !");
   };
 
   if (isLoading) {
@@ -308,6 +452,13 @@ export function BookingWidget({ config }: BookingWidgetProps) {
           Choisissez votre espace, sélectionnez vos dates et réservez
           instantanément.
         </p>
+        {/* Bouton de test temporaire */}
+        <button
+          onClick={testToast}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Test Toasts
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
@@ -523,17 +674,31 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableTimeSlots.length > 0 ? (
-                      availableTimeSlots.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time}
+                    {timeSlots.map((time) => {
+                      const isAvailable = isTimeSlotAvailable(
+                        time,
+                        selectedDate || new Date()
+                      );
+                      return (
+                        <SelectItem
+                          key={time}
+                          value={time}
+                          disabled={!isAvailable}
+                          className={
+                            !isAvailable ? "opacity-50 cursor-not-allowed" : ""
+                          }
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>{time}</span>
+                            {!isAvailable && (
+                              <span className="text-xs text-red-500 ml-2">
+                                Occupé
+                              </span>
+                            )}
+                          </div>
                         </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1 text-sm text-gray-500">
-                        Aucun créneau disponible
-                      </div>
-                    )}
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 {selectedDate && availableTimeSlots.length === 0 && (
@@ -541,6 +706,13 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     Cette date est complètement réservée
                   </p>
                 )}
+                {selectedDate &&
+                  availableTimeSlots.length > 0 &&
+                  availableTimeSlots.length < timeSlots.length && (
+                    <p className="text-xs text-orange-500 mt-1">
+                      Certains créneaux sont occupés
+                    </p>
+                  )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -759,6 +931,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
           )}
         </div>
       </div>
+      <ToasterWrapper />
     </div>
   );
 }
