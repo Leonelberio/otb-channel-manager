@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  formatCurrency,
+  getCurrencySymbol,
+  type Currency,
+} from "@/lib/currency";
 
 interface Room {
   id: string;
@@ -45,7 +50,7 @@ interface ReservationModalProps {
   onSave: () => void;
   reservation?: Reservation;
   rooms: Room[];
-  currency: string;
+  currency: Currency;
 }
 
 const RESERVATION_STATUSES = [
@@ -214,8 +219,8 @@ export function ReservationModal({
                 <SelectContent>
                   {rooms.map((room) => (
                     <SelectItem key={room.id} value={room.id}>
-                      {room.propertyName} - {room.name} ({room.pricePerNight}
-                      {currency}/nuit)
+                      {room.propertyName} - {room.name} (
+                      {formatCurrency(room.pricePerNight, currency)}/nuit)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -314,7 +319,9 @@ export function ReservationModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="totalPrice">Prix total ({currency})</Label>
+                <Label htmlFor="totalPrice">
+                  Prix total ({getCurrencySymbol(currency)})
+                </Label>
                 <Input
                   id="totalPrice"
                   type="number"
@@ -330,8 +337,8 @@ export function ReservationModal({
                 />
                 {selectedRoom && formData.startDate && formData.endDate && (
                   <p className="text-xs text-gray-500">
-                    Calculé automatiquement: {selectedRoom.pricePerNight}
-                    {currency}/nuit
+                    Calculé automatiquement:{" "}
+                    {formatCurrency(selectedRoom.pricePerNight, currency)}/nuit
                   </p>
                 )}
               </div>

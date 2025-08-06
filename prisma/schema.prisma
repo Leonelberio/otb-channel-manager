@@ -25,6 +25,7 @@ model User {
   ownedOrganisations Organisation[]     @relation("OrganisationOwner")
   userOrganisations  UserOrganisation[]
   integrations       Integration[]
+  userPreferences    UserPreferences?
 
   // NextAuth fields
   accounts Account[]
@@ -247,6 +248,9 @@ model UserPreferences {
   // Configuration du widget
   widgetPrimaryColor String @default("#8ABF37") @map("widget_primary_color")
   widgetButtonColor  String @default("#8ABF37") @map("widget_button_color")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_preferences")
 }

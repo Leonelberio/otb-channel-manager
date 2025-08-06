@@ -37,7 +37,7 @@ export default async function WidgetPage({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Réservation d&apos;espace - {organization.name}</title>
+        <title>{`Réservation d'espace - ${organization.name}`}</title>
         <style
           dangerouslySetInnerHTML={{
             __html: `

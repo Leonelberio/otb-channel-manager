@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ReservationModal } from "./ReservationModal";
 import { DeleteReservationModal } from "./DeleteReservationModal";
-import { PriceDisplay } from "@/components/ui/PriceDisplay";
+import { formatCurrency, type Currency } from "@/lib/currency";
 
 interface Room {
   id: string;
@@ -49,7 +49,7 @@ interface Reservation {
 interface ReservationsClientProps {
   initialReservations: Reservation[];
   rooms: Room[];
-  currency: string;
+  currency: Currency;
 }
 
 const RESERVATION_STATUSES = [
@@ -70,9 +70,10 @@ const RESERVATION_STATUSES = [
 export function ReservationsClient({
   initialReservations,
   rooms,
-  currency,
+  currency: initialCurrency,
 }: ReservationsClientProps) {
   const [reservations, setReservations] = useState(initialReservations);
+  const [currency, setCurrency] = useState<Currency>(initialCurrency);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<
@@ -87,6 +88,9 @@ export function ReservationsClient({
       if (response.ok) {
         const data = await response.json();
         setReservations(data.reservations);
+        if (data.currency) {
+          setCurrency(data.currency);
+        }
       }
     } catch (error) {
       console.error("Erreur lors du rafraîchissement:", error);
@@ -274,8 +278,7 @@ export function ReservationsClient({
 
                         {reservation.totalPrice && (
                           <div className="text-lg font-semibold text-airbnb-charcoal mt-2">
-                            {reservation.totalPrice}
-                            {currency}
+                            {formatCurrency(reservation.totalPrice, currency)}
                           </div>
                         )}
                       </div>

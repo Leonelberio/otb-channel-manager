@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserPreferencesWithDefaults } from "@/lib/user-preferences";
+import { type Currency } from "@/lib/currency";
 import { ReservationsClient } from "@/components/reservations/ReservationsClient";
 
 export default async function ReservationsPage() {
@@ -59,20 +59,24 @@ export default async function ReservationsPage() {
         id: room.id,
         name: room.name,
         propertyName: property.name,
-        pricePerNight: Number(room.pricePerNight),
+        pricePerNight: room.pricePerNight ? Number(room.pricePerNight) : 0,
       }))
     ) || [];
 
-  // Récupérer les préférences utilisateur pour la devise
-  const userPreferences = await getUserPreferencesWithDefaults(
-    session!.user.id
-  );
+  // Récupérer la devise via SQL brut
+  const userPreferencesResult = await prisma.$queryRaw<
+    Array<{ currency: string }>
+  >`
+    SELECT currency FROM user_preferences WHERE user_id = ${session!.user.id}
+  `;
+
+  const currency = (userPreferencesResult[0]?.currency as Currency) || "EUR";
 
   return (
     <ReservationsClient
       initialReservations={allReservations}
       rooms={rooms}
-      currency={userPreferences.currency}
+      currency={currency}
     />
   );
 }

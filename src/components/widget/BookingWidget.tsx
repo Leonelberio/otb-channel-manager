@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { formatCurrency, type Currency } from "@/lib/currency";
 
 interface Room {
   id: string;
@@ -81,6 +82,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
   const [showQuote, setShowQuote] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currency, setCurrency] = useState<Currency>("EUR");
 
   // Form fields for booking
   const [guestName, setGuestName] = useState("");
@@ -100,6 +102,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
       if (response.ok) {
         const data = await response.json();
         setRooms(data.rooms || []);
+        setCurrency(data.currency || "EUR");
       }
     } catch (error) {
       console.error("Erreur lors du chargement des espaces:", error);
@@ -260,7 +263,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                         {room.propertyName} - {room.name}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {room.pricePerNight.toLocaleString()} FCFA/jour
+                        {formatCurrency(room.pricePerNight, currency)}/jour
                       </div>
                     </div>
                   </SelectItem>
@@ -412,7 +415,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                       className="text-xl"
                       style={{ color: config.primaryColor }}
                     >
-                      {calculateQuote().toLocaleString()} FCFA
+                      {formatCurrency(calculateQuote(), currency)}
                     </span>
                   </div>
                 </div>
@@ -433,7 +436,6 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-opacity-50"
-                    style={{ focusRingColor: config.primaryColor }}
                     placeholder="Votre nom complet"
                   />
                 </div>
@@ -447,7 +449,6 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     value={guestEmail}
                     onChange={(e) => setGuestEmail(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-opacity-50"
-                    style={{ focusRingColor: config.primaryColor }}
                     placeholder="votre@email.com"
                   />
                 </div>
@@ -460,9 +461,8 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-opacity-50"
-                    style={{ focusRingColor: config.primaryColor }}
-                    placeholder="Informations supplémentaires..."
                     rows={3}
+                    placeholder="Notes ou demandes spéciales..."
                   />
                 </div>
               </div>
