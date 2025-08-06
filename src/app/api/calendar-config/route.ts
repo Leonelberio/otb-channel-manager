@@ -110,3 +110,56 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Supprimer une configuration d'agenda
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const configId = searchParams.get("configId");
+
+    if (!configId) {
+      return NextResponse.json(
+        { error: "ID de configuration manquant" },
+        { status: 400 }
+      );
+    }
+
+    // Vérifier que la configuration appartient à l'utilisateur
+    const config = await prisma.calendarConfig.findFirst({
+      where: {
+        id: configId,
+        integration: {
+          userId: session.user.id,
+          type: "google_calendar",
+        },
+      },
+    });
+
+    if (!config) {
+      return NextResponse.json(
+        { error: "Configuration non trouvée" },
+        { status: 404 }
+      );
+    }
+
+    // Supprimer la configuration
+    await prisma.calendarConfig.delete({
+      where: {
+        id: configId,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Erreur lors de la suppression de la configuration:", error);
+    return NextResponse.json(
+      { error: "Erreur interne du serveur" },
+      { status: 500 }
+    );
+  }
+}

@@ -12,16 +12,22 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Settings, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Calendar,
+  Settings,
+  CheckCircle,
+  AlertCircle,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface Room {
   id: string;
   name: string;
-  property: {
-    id: string;
-    name: string;
-  };
+  propertyName: string;
+  equipmentCount: number;
+  reservationCount: number;
 }
 
 interface GoogleCalendar {
@@ -43,10 +49,7 @@ interface CalendarConfig {
   room: {
     id: string;
     name: string;
-    property: {
-      id: string;
-      name: string;
-    };
+    propertyName: string;
   };
 }
 
@@ -56,6 +59,9 @@ export function CalendarSelector() {
   const [configs, setConfigs] = useState<CalendarConfig[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [selectedCalendar, setSelectedCalendar] = useState<string>("");
+  const [editingConfig, setEditingConfig] = useState<CalendarConfig | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
 
@@ -96,34 +102,34 @@ export function CalendarSelector() {
   }, []);
 
   // Récupérer les configurations existantes
-  useEffect(() => {
-    const fetchConfigs = async () => {
-      try {
-        const response = await fetch("/api/calendar-config");
-        if (response.ok) {
-          const data = await response.json();
-          setConfigs(data.configs || []);
-        } else {
-          console.error(
-            "Erreur API calendar-config:",
-            response.status,
-            response.statusText
-          );
-          // En cas d'erreur, on continue avec une liste vide
-          setConfigs([]);
-        }
-      } catch (error) {
+  const fetchConfigs = async () => {
+    try {
+      const response = await fetch("/api/calendar-config");
+      if (response.ok) {
+        const data = await response.json();
+        setConfigs(data.configs || []);
+      } else {
         console.error(
-          "Erreur lors de la récupération des configurations:",
-          error
+          "Erreur API calendar-config:",
+          response.status,
+          response.statusText
         );
         // En cas d'erreur, on continue avec une liste vide
         setConfigs([]);
-      } finally {
-        setIsLoadingConfigs(false);
       }
-    };
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des configurations:",
+        error
+      );
+      // En cas d'erreur, on continue avec une liste vide
+      setConfigs([]);
+    } finally {
+      setIsLoadingConfigs(false);
+    }
+  };
 
+  useEffect(() => {
     fetchConfigs();
   }, []);
 
@@ -155,45 +161,19 @@ export function CalendarSelector() {
 
       if (response.ok) {
         const data = await response.json();
-        toast.success("Configuration sauvegardée avec succès !");
+        toast.success(
+          editingConfig
+            ? "Configuration mise à jour avec succès !"
+            : "Configuration sauvegardée avec succès !"
+        );
 
-        // Mettre à jour la liste des configurations
-        setConfigs((prev) => {
-          const existing = prev.find((c) => c.roomId === selectedRoom);
-          if (existing) {
-            return prev.map((c) =>
-              c.roomId === selectedRoom
-                ? {
-                    ...c,
-                    calendarId: selectedCalendar,
-                    calendarName: calendar.name,
-                  }
-                : c
-            );
-          } else {
-            const room = rooms.find((r) => r.id === selectedRoom);
-            if (!room) {
-              console.error("Room not found:", selectedRoom);
-              return prev;
-            }
-
-            return [
-              ...prev,
-              {
-                id: data.config.id,
-                roomId: selectedRoom,
-                calendarId: selectedCalendar,
-                calendarName: calendar.name,
-                isActive: true,
-                room: room,
-              },
-            ];
-          }
-        });
+        // Rafraîchir la liste des configurations
+        await fetchConfigs();
 
         // Réinitialiser les sélections
         setSelectedRoom("");
         setSelectedCalendar("");
+        setEditingConfig(null);
       } else {
         toast.error("Erreur lors de la sauvegarde");
       }
@@ -203,6 +183,43 @@ export function CalendarSelector() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditConfig = (config: CalendarConfig) => {
+    setEditingConfig(config);
+    setSelectedRoom(config.roomId);
+    setSelectedCalendar(config.calendarId);
+  };
+
+  const handleDeleteConfig = async (configId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette configuration ?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/calendar-config?configId=${configId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response.ok) {
+        toast.success("Configuration supprimée avec succès !");
+        await fetchConfigs();
+      } else {
+        toast.error("Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingConfig(null);
+    setSelectedRoom("");
+    setSelectedCalendar("");
   };
 
   const getConfigForRoom = (roomId: string) => {
@@ -237,7 +254,9 @@ export function CalendarSelector() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Configuration des Agendas
+            {editingConfig
+              ? "Modifier la Configuration"
+              : "Configuration des Agendas"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -251,7 +270,7 @@ export function CalendarSelector() {
                 <SelectContent>
                   {rooms.map((room) => (
                     <SelectItem key={room.id} value={room.id}>
-                      {room.property.name} - {room.name}
+                      {room.propertyName} - {room.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -289,13 +308,28 @@ export function CalendarSelector() {
             </div>
           </div>
 
-          <Button
-            onClick={handleSaveConfig}
-            disabled={!selectedRoom || !selectedCalendar || isLoading}
-            className="w-full"
-          >
-            {isLoading ? "Sauvegarde..." : "Sauvegarder la configuration"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSaveConfig}
+              disabled={!selectedRoom || !selectedCalendar || isLoading}
+              className="flex-1"
+            >
+              {isLoading
+                ? "Sauvegarde..."
+                : editingConfig
+                ? "Mettre à jour la configuration"
+                : "Sauvegarder la configuration"}
+            </Button>
+            {editingConfig && (
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={isLoading}
+              >
+                Annuler
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -311,7 +345,7 @@ export function CalendarSelector() {
           {configs.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Aucune configuration d'agenda définie</p>
+              <p>Aucune configuration d&apos;agenda définie</p>
               <p className="text-sm">Configurez un agenda pour commencer</p>
             </div>
           ) : (
@@ -325,16 +359,34 @@ export function CalendarSelector() {
                     <CheckCircle className="h-5 w-5 text-green-500" />
                     <div>
                       <p className="font-medium">
-                        {config.room.property.name} - {config.room.name}
+                        {config.room.propertyName} - {config.room.name}
                       </p>
                       <p className="text-sm text-gray-600">
                         Agenda: {config.calendarName}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-green-600">
-                    Configuré
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-green-600">
+                      Configuré
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditConfig(config)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteConfig(config.id)}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -362,10 +414,10 @@ export function CalendarSelector() {
                   >
                     <div>
                       <p className="font-medium">
-                        {room.property.name} - {room.name}
+                        {room.propertyName} - {room.name}
                       </p>
                       <p className="text-sm text-orange-600">
-                        Aucun agenda configuré
+                        Aucun agenda configuré - utilise l&apos;agenda principal
                       </p>
                     </div>
                     <Badge variant="outline" className="text-orange-600">

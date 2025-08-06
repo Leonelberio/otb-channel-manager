@@ -50,33 +50,6 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
   const [hasGoogleCalendarIntegration, setHasGoogleCalendarIntegration] =
     useState<boolean | null>(null);
 
-  // Vérifier l'intégration Google Calendar
-  useEffect(() => {
-    const checkGoogleCalendarIntegration = async () => {
-      try {
-        const response = await fetch("/api/integrations");
-        if (response.ok) {
-          const data = await response.json();
-          const googleIntegration = data.integrations?.find(
-            (integration: { type: string; isActive: boolean }) =>
-              integration.type === "google_calendar" && integration.isActive
-          );
-          setHasGoogleCalendarIntegration(!!googleIntegration);
-        } else {
-          setHasGoogleCalendarIntegration(false);
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification de l'intégration:",
-          error
-        );
-        setHasGoogleCalendarIntegration(false);
-      }
-    };
-
-    checkGoogleCalendarIntegration();
-  }, []);
-
   // Récupérer les espaces
   useEffect(() => {
     const fetchRooms = async () => {
@@ -118,29 +91,44 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
         params.append("roomId", selectedRoom);
       }
 
+      console.log("🔍 Fetching events:", {
+        selectedRoom: selectedRoom || "all",
+        url: `/api/integrations/google-calendar/events?${params.toString()}`,
+      });
+
       const response = await fetch(
         `/api/integrations/google-calendar/events?${params.toString()}`
       );
 
       if (response.ok) {
         const data = await response.json();
+        console.log("📅 Events received:", {
+          totalEvents: data.events?.length || 0,
+          calendarsUsed: data.calendarsUsed || [data.calendarId],
+          totalCalendars: data.totalCalendars || 1,
+        });
         setEvents(data.events || []);
+        // Si on récupère des événements avec succès, l'intégration fonctionne
+        setHasGoogleCalendarIntegration(true);
       } else if (response.status === 404) {
-        // Intégration Google Calendar non configurée - pas d'erreur, juste aucun événement
+        // Intégration Google Calendar non configurée
         console.log(
           "Google Calendar non configuré - affichage sans événements externes"
         );
         setEvents([]);
+        setHasGoogleCalendarIntegration(false);
       } else {
         console.error(
           "Erreur lors de la récupération des événements:",
           response.statusText
         );
         setEvents([]);
+        setHasGoogleCalendarIntegration(false);
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des événements:", error);
       setEvents([]);
+      setHasGoogleCalendarIntegration(false);
     } finally {
       setIsLoading(false);
     }
@@ -183,10 +171,13 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
   };
 
   const getEventsForDate = (date: Date) => {
-    return events.filter((event) => {
+    const filteredEvents = events.filter((event) => {
       const eventDate = new Date(event.startDate);
-      return eventDate.toDateString() === date.toDateString();
+      const match = eventDate.toDateString() === date.toDateString();
+      return match;
     });
+
+    return filteredEvents;
   };
 
   const formatTime = (dateString: string) => {

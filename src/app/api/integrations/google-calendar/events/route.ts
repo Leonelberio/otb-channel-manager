@@ -27,6 +27,23 @@ interface GoogleCalendarResponse {
   items?: GoogleCalendarEvent[];
 }
 
+interface TransformedEvent {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  eventType: string;
+  source: string;
+  location: string;
+  calendarId: string;
+  attendees: Array<{
+    email: string;
+    name?: string;
+    responseStatus?: string;
+  }>;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,11 +75,10 @@ export async function GET(request: NextRequest) {
       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const roomId = searchParams.get("roomId");
 
-    // Déterminer quel agenda utiliser
-    let calendarId = "primary"; // Agenda principal par défaut
+    let calendarsToFetch: string[] = [];
 
-    if (roomId) {
-      // Récupérer la configuration de l'agenda pour cet espace
+    if (roomId && roomId !== "all") {
+      // Cas spécifique : un espace sélectionné
       const calendarConfig = await prisma.calendarConfig.findFirst({
         where: {
           integrationId: integration.id,
@@ -72,62 +88,112 @@ export async function GET(request: NextRequest) {
       });
 
       if (calendarConfig) {
-        calendarId = calendarConfig.calendarId;
+        calendarsToFetch = [calendarConfig.calendarId];
+      } else {
+        // Si pas de config spécifique, utiliser l'agenda principal
+        calendarsToFetch = ["primary"];
+      }
+    } else {
+      // Cas "Tous les espaces" : récupérer tous les agendas configurés
+      const allConfigs = await prisma.calendarConfig.findMany({
+        where: {
+          integrationId: integration.id,
+          isActive: true,
+        },
+      });
+
+      if (allConfigs.length > 0) {
+        // Utiliser tous les agendas configurés, en supprimant les doublons
+        calendarsToFetch = [
+          ...new Set(allConfigs.map((config: any) => config.calendarId)),
+        ];
+      } else {
+        // Si aucune configuration, ne pas afficher d'événements pour "Tous les espaces"
+        console.log(
+          "🚫 No calendar configurations found - showing no events for 'all spaces'"
+        );
+        return NextResponse.json({ events: [], calendarsUsed: [] });
       }
     }
 
-    // Appeler l'API Google Calendar avec l'agenda spécifique
-    const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-        calendarId
-      )}/events?` +
-        `timeMin=${encodeURIComponent(timeMin)}&` +
-        `timeMax=${encodeURIComponent(timeMax)}&` +
-        `singleEvents=true&` +
-        `orderBy=startTime`,
-      {
-        headers: {
-          Authorization: `Bearer ${integration.accessToken}`,
-          "Content-Type": "application/json",
-        },
+    console.log("📅 Calendars to fetch:", calendarsToFetch);
+
+    // Récupérer les événements de tous les agendas
+    const allEvents: TransformedEvent[] = [];
+    const calendarsUsed: string[] = [];
+
+    for (const calendarId of calendarsToFetch) {
+      try {
+        const calendarResponse = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+            calendarId
+          )}/events?` +
+            `timeMin=${encodeURIComponent(timeMin)}&` +
+            `timeMax=${encodeURIComponent(timeMax)}&` +
+            `singleEvents=true&` +
+            `orderBy=startTime`,
+          {
+            headers: {
+              Authorization: `Bearer ${integration.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (calendarResponse.ok) {
+          const calendarData =
+            (await calendarResponse.json()) as GoogleCalendarResponse;
+
+          // Transformer les événements Google en format compatible
+          const calendarEvents: TransformedEvent[] =
+            calendarData.items?.map((event: GoogleCalendarEvent) => ({
+              id: `${calendarId}_${event.id}`, // Préfixer avec l'ID du calendrier pour éviter les doublons
+              title: event.summary || "Sans titre",
+              description: event.description || "",
+              startDate: event.start.dateTime || event.start.date || "",
+              endDate: event.end.dateTime || event.end.date || "",
+              eventType: "external",
+              source: "google_calendar",
+              location: event.location || "",
+              calendarId: calendarId, // Ajouter l'ID du calendrier source
+              attendees:
+                event.attendees?.map((attendee) => ({
+                  email: attendee.email,
+                  name: attendee.displayName,
+                  responseStatus: attendee.responseStatus,
+                })) || [],
+            })) || [];
+
+          allEvents.push(...calendarEvents);
+          calendarsUsed.push(calendarId);
+
+          console.log(
+            `📊 Calendar ${calendarId}: ${calendarEvents.length} events`
+          );
+        } else {
+          console.error(
+            `❌ Error fetching calendar ${calendarId}:`,
+            await calendarResponse.text()
+          );
+        }
+      } catch (error) {
+        console.error(`❌ Error processing calendar ${calendarId}:`, error);
       }
+    }
+
+    // Trier tous les événements par date de début
+    allEvents.sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
-    if (!calendarResponse.ok) {
-      console.error(
-        "Erreur API Google Calendar:",
-        await calendarResponse.text()
-      );
-      return NextResponse.json(
-        {
-          error:
-            "Erreur lors de la récupération des événements Google Calendar",
-        },
-        { status: 500 }
-      );
-    }
-
-    const calendarData =
-      (await calendarResponse.json()) as GoogleCalendarResponse;
-
-    // Transformer les événements Google en format compatible
-    const events =
-      calendarData.items?.map((event: GoogleCalendarEvent) => ({
-        id: event.id,
-        title: event.summary || "Sans titre",
-        description: event.description || "",
-        startDate: event.start.dateTime || event.start.date,
-        endDate: event.end.dateTime || event.end.date,
-        eventType: "external",
-        source: "google_calendar",
-        location: event.location || "",
-        attendees:
-          event.attendees?.map((attendee) => ({
-            email: attendee.email,
-            name: attendee.displayName,
-            responseStatus: attendee.responseStatus,
-          })) || [],
-      })) || [];
+    console.log(`🚀 API Response for roomId=${roomId}:`);
+    console.log(
+      `📊 Total events from ${calendarsUsed.length} calendars: ${allEvents.length}`
+    );
+    console.log(`📅 Sample event:`, allEvents[0] || "No events");
+    console.log(`🗓️ Time range: ${timeMin} to ${timeMax}`);
+    console.log(`🎯 Calendars used:`, calendarsUsed);
 
     // Mettre à jour lastSyncAt
     await prisma.integration.update({
@@ -135,7 +201,11 @@ export async function GET(request: NextRequest) {
       data: { lastSyncAt: new Date() },
     });
 
-    return NextResponse.json({ events, calendarId });
+    return NextResponse.json({
+      events: allEvents,
+      calendarsUsed,
+      totalCalendars: calendarsUsed.length,
+    });
   } catch (error) {
     console.error("Erreur lors de la récupération des événements:", error);
     return NextResponse.json(
