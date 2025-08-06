@@ -244,6 +244,10 @@ model UserPreferences {
   currency            String  @default("EUR") // "EUR", "USD", "XOF" (CFA)
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
 
+  // Configuration du widget
+  widgetPrimaryColor String @default("#8ABF37") @map("widget_primary_color")
+  widgetButtonColor  String @default("#8ABF37") @map("widget_button_color")
+
   @@map("user_preferences")
 }
 
