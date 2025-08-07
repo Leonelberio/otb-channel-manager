@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Configuration pour éviter le pré-rendu
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface GoogleCalendarEvent {
   id: string;
   summary?: string;

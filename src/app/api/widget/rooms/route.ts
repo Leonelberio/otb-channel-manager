@@ -32,29 +32,36 @@ export async function GET(request: NextRequest) {
       SELECT currency FROM user_preferences WHERE user_id = ${organization.ownerId}
     `;
 
-    // Récupérer les propriétés et leurs espaces
-    const properties = await prisma.property.findMany({
-      where: { organisationId: orgId },
-      include: {
-        rooms: {
-          select: {
-            id: true,
-            name: true,
-            pricePerNight: true,
-          },
-        },
-      },
-    });
+    // Récupérer les espaces avec pricingType via SQL brut
+    const roomsResult = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        pricePerNight: string | null;
+        pricingType: string | null;
+        propertyName: string;
+      }>
+    >`
+      SELECT 
+        r.id,
+        r.name,
+        r.price_per_night as "pricePerNight",
+        r.pricing_type as "pricingType",
+        p.name as "propertyName"
+      FROM rooms r
+      JOIN properties p ON r.property_id = p.id
+      WHERE p.organisation_id = ${orgId}
+      ORDER BY r.created_at DESC
+    `;
 
-    // Aplatir les espaces avec les informations des propriétés
-    const rooms = properties.flatMap((property) =>
-      property.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        propertyName: property.name,
-        pricePerNight: Number(room.pricePerNight || 0),
-      }))
-    );
+    // Convertir et formater les données
+    const rooms = roomsResult.map((room) => ({
+      id: room.id,
+      name: room.name,
+      propertyName: room.propertyName,
+      pricePerNight: Number(room.pricePerNight || 0),
+      pricingType: room.pricingType || "night",
+    }));
 
     // Récupérer la devise des préférences utilisateur ou utiliser EUR par défaut
     const currency = userPreferencesResult[0]?.currency || "EUR";

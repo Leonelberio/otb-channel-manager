@@ -58,7 +58,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier les conflits de réservation
+    // Si c'est la même journée, vérifier qu'une heure et une durée sont définies
+    if (
+      start.toDateString() === end.toDateString() &&
+      (!startTime || !duration)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Pour une réservation sur la même journée, veuillez spécifier l'heure et la durée",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Calculer les dates/heures de début et fin réelles
+    const actualStart = new Date(start);
+    let actualEnd = new Date(end);
+
+    // Si c'est la même journée, ajuster avec l'heure et la durée
+    if (start.toDateString() === end.toDateString()) {
+      if (startTime) {
+        const [hours, minutes] = startTime.split(":").map(Number);
+        actualStart.setHours(hours, minutes, 0, 0);
+      }
+
+      if (duration) {
+        if (duration >= 8) {
+          // Journée complète
+          actualEnd = new Date(actualStart);
+          actualEnd.setDate(actualEnd.getDate() + 1);
+        } else {
+          // Durée horaire
+          actualEnd = new Date(actualStart);
+          actualEnd.setHours(actualEnd.getHours() + duration);
+        }
+      }
+    } else {
+      // Plusieurs jours, utiliser la date de fin avec fin de journée
+      actualEnd.setHours(23, 59, 59, 999);
+    }
+
+    // Vérifier les conflits de réservation avec les heures/durées
     const conflictingReservation = await prisma.reservation.findFirst({
       where: {
         roomId,
@@ -67,13 +108,22 @@ export async function POST(request: NextRequest) {
         },
         OR: [
           {
-            AND: [{ startDate: { lte: start } }, { endDate: { gt: start } }],
+            AND: [
+              { startDate: { lte: actualStart } },
+              { endDate: { gt: actualStart } },
+            ],
           },
           {
-            AND: [{ startDate: { lt: end } }, { endDate: { gte: end } }],
+            AND: [
+              { startDate: { lt: actualEnd } },
+              { endDate: { gte: actualEnd } },
+            ],
           },
           {
-            AND: [{ startDate: { gte: start } }, { endDate: { lte: end } }],
+            AND: [
+              { startDate: { gte: actualStart } },
+              { endDate: { lte: actualEnd } },
+            ],
           },
         ],
       },
@@ -86,14 +136,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer la réservation avec le statut PENDING par défaut
+    // Créer la réservation avec les dates/heures calculées
     const reservation = await prisma.reservation.create({
       data: {
         roomId,
         guestName,
         guestEmail: guestEmail || null,
-        startDate: start,
-        endDate: end,
+        startDate: actualStart,
+        endDate: actualEnd,
         startTime: startTime || null,
         duration: duration ? parseInt(duration) : null,
         status: "PENDING",
@@ -103,7 +153,12 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      reservation,
+      reservation: {
+        ...reservation,
+        totalPrice: reservation.totalPrice
+          ? Number(reservation.totalPrice)
+          : null,
+      },
       message:
         "Réservation créée avec succès ! Vous recevrez une confirmation bientôt.",
     });

@@ -16,7 +16,14 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, capacity, pricePerNight, description, propertyId } = body;
+    const {
+      name,
+      capacity,
+      pricePerNight,
+      pricingType,
+      description,
+      propertyId,
+    } = body;
 
     // Validation
     if (!name || !name.trim()) {
@@ -77,19 +84,57 @@ export async function PUT(
       );
     }
 
-    // Mettre à jour la chambre/espace
-    const room = await prisma.room.update({
-      where: { id },
-      data: {
-        name: name.trim(),
-        capacity: capacity || null,
-        pricePerNight: pricePerNight || null,
-        description: description?.trim() || null,
-        propertyId,
-      },
-    });
+    // Mettre à jour la chambre/espace avec SQL brut pour inclure pricingType
+    await prisma.$executeRaw`
+      UPDATE rooms 
+      SET 
+        name = ${name.trim()},
+        capacity = ${capacity || null},
+        price_per_night = ${pricePerNight || null},
+        pricing_type = ${pricingType || null},
+        description = ${description?.trim() || null},
+        property_id = ${propertyId},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `;
 
-    return NextResponse.json({ room });
+    // Récupérer les données mises à jour avec SQL brut
+    const updatedRoomResult = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        propertyId: string;
+        name: string;
+        roomNumber: string | null;
+        roomType: string | null;
+        description: string | null;
+        capacity: number | null;
+        pricePerNight: string | null;
+        pricingType: string | null;
+        images: string[];
+        createdAt: Date;
+        updatedAt: Date;
+      }>
+    >`
+      SELECT 
+        id,
+        property_id as "propertyId",
+        name,
+        room_number as "roomNumber",
+        room_type as "roomType",
+        description,
+        capacity,
+        price_per_night as "pricePerNight",
+        pricing_type as "pricingType",
+        images,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM rooms 
+      WHERE id = ${id}
+    `;
+
+    const updatedRoom = updatedRoomResult[0];
+
+    return NextResponse.json({ room: updatedRoom });
   } catch (error) {
     console.error("Erreur lors de la modification de la chambre:", error);
     return NextResponse.json(

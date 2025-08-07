@@ -28,6 +28,10 @@ interface Room {
   propertyName: string;
   equipmentCount: number;
   reservationCount: number;
+  pricingType?: string | null;
+  pricePerNight?: number | null;
+  capacity?: number | null;
+  description?: string | null;
 }
 
 interface GoogleCalendar {

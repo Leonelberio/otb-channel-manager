@@ -99,6 +99,7 @@ model Room {
   description   String?
   capacity      Int? // nombre de personnes
   pricePerNight Decimal? @map("price_per_night") @db.Decimal(10, 2)
+  pricingType   String?  @default("night") @map("pricing_type") // "day", "night", "hour"
   images        String[] // Array d'URLs d'images
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ interface Room {
   name: string;
   capacity?: number | null;
   pricePerNight?: number | null;
+  pricingType?: string | null;
   description?: string | null;
   propertyId: string;
 }
@@ -66,10 +67,25 @@ export function RoomModal({
     name: room?.name || "",
     capacity: room?.capacity?.toString() || "",
     pricePerNight: room?.pricePerNight?.toString() || "",
+    pricingType: room?.pricingType || "night",
     description: room?.description || "",
     propertyId: room?.propertyId || "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (room && isOpen) {
+      console.log("🔍 Mise à jour du formData avec room:", room);
+      setFormData({
+        name: room.name,
+        capacity: room.capacity?.toString() || "",
+        pricePerNight: room.pricePerNight?.toString() || "",
+        pricingType: room.pricingType || "night",
+        description: room.description || "",
+        propertyId: room.propertyId,
+      });
+    }
+  }, [room, isOpen]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -129,6 +145,7 @@ export function RoomModal({
         pricePerNight: formData.pricePerNight
           ? Number(formData.pricePerNight)
           : null,
+        pricingType: formData.pricingType,
         description: formData.description?.trim() || null,
         propertyId: formData.propertyId,
       };
@@ -155,6 +172,7 @@ export function RoomModal({
         name: "",
         capacity: "",
         pricePerNight: "",
+        pricingType: "night",
         description: "",
         propertyId: "",
       });
@@ -176,6 +194,7 @@ export function RoomModal({
         name: "",
         capacity: "",
         pricePerNight: "",
+        pricingType: "night",
         description: "",
         propertyId: "",
       });
@@ -291,8 +310,8 @@ export function RoomModal({
             )}
           </div>
 
-          {/* Capacity and Price Row */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Capacity, Price and Pricing Type Row */}
+          <div className="grid grid-cols-3 gap-4">
             {/* Capacity */}
             <div className="space-y-2">
               <Label
@@ -325,13 +344,55 @@ export function RoomModal({
               )}
             </div>
 
-            {/* Price per night */}
+            {/* Pricing Type */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="pricingType"
+                className="text-sm font-medium text-airbnb-charcoal"
+              >
+                Type de tarification
+              </Label>
+              <Select
+                value={formData.pricingType}
+                onValueChange={(value: string) =>
+                  handleInputChange("pricingType", value)
+                }
+                disabled={isLoading}
+              >
+                <SelectTrigger
+                  className={`transition-colors ${
+                    errors.pricingType
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red"
+                  }`}
+                >
+                  <SelectValue placeholder="Sélectionner le type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="night">Par nuit</SelectItem>
+                  <SelectItem value="day">Par jour</SelectItem>
+                  <SelectItem value="hour">Par heure</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.pricingType && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.pricingType}
+                </p>
+              )}
+            </div>
+
+            {/* Price */}
             <div className="space-y-2">
               <Label
                 htmlFor="pricePerNight"
                 className="text-sm font-medium text-airbnb-charcoal"
               >
-                Prix par nuit
+                Prix{" "}
+                {formData.pricingType === "hour"
+                  ? "par heure"
+                  : formData.pricingType === "day"
+                  ? "par jour"
+                  : "par nuit"}
               </Label>
               <div className="relative">
                 <span className="absolute left-3 top-3 h-4 w-4 text-airbnb-dark-gray flex items-center justify-center text-sm font-medium">

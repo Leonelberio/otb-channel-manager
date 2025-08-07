@@ -38,6 +38,7 @@ interface RoomData {
   name: string;
   capacity?: number | null;
   pricePerNight?: number | null;
+  pricingType?: string | null;
   description?: string | null;
   propertyId: string;
   propertyName: string;
@@ -71,6 +72,10 @@ export function RoomsClient({
   const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null);
 
   const handleEditClick = (room: RoomData) => {
+    console.log("🔍 handleEditClick - room original:", room);
+    console.log("🔍 handleEditClick - room.pricingType:", room.pricingType);
+    const modalRoom = convertToModalRoom(room);
+    console.log("🔍 handleEditClick - modalRoom:", modalRoom);
     setSelectedRoom(room);
     setIsEditModalOpen(true);
   };
@@ -92,6 +97,7 @@ export function RoomsClient({
     name: room.name,
     capacity: room.capacity,
     pricePerNight: room.pricePerNight,
+    pricingType: room.pricingType,
     description: room.description,
     propertyId: room.propertyId,
   });
@@ -125,6 +131,18 @@ export function RoomsClient({
     )
       return <Snowflake className="h-4 w-4" />;
     return <BedDouble className="h-4 w-4" />;
+  };
+
+  const getPricingTypeLabel = (pricingType: string | null) => {
+    switch (pricingType) {
+      case "hour":
+        return "par heure";
+      case "day":
+        return "par jour";
+      case "night":
+      default:
+        return "par nuit";
+    }
   };
 
   const unitSingular = unitTerminology === "chambres" ? "chambre" : "espace";
@@ -201,8 +219,11 @@ export function RoomsClient({
                       <PriceDisplay
                         amount={room.pricePerNight}
                         currency={currency}
-                        showPerNight={true}
+                        showPerNight={false}
                       />
+                      <span className="text-sm text-airbnb-dark-gray ml-1">
+                        {getPricingTypeLabel(room.pricingType || null)}
+                      </span>
                     </div>
                   )}
 

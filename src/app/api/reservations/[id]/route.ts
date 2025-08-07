@@ -152,7 +152,9 @@ export async function PUT(
     const updatedReservation = await prisma.reservation.update({
       where: { id },
       data: {
-        roomId,
+        room: {
+          connect: { id: roomId },
+        },
         guestName,
         guestEmail: guestEmail || null,
         startDate: start,

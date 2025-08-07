@@ -118,7 +118,12 @@ export function ReservationModal({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (reservation) {
+    if (reservation && isOpen) {
+      console.log("🔍 Mise à jour du formulaire avec reservation:", {
+        startTime: reservation.startTime,
+        duration: reservation.duration,
+        reservation,
+      });
       setFormData({
         roomId: reservation.roomId,
         guestName: reservation.guestName,
@@ -131,7 +136,8 @@ export function ReservationModal({
         totalPrice: reservation.totalPrice?.toString() || "",
         notes: reservation.notes || "",
       });
-    } else {
+    } else if (!reservation && isOpen) {
+      console.log("🔍 Nouveau formulaire de réservation");
       setFormData({
         roomId: "",
         guestName: "",
@@ -145,7 +151,7 @@ export function ReservationModal({
         notes: "",
       });
     }
-  }, [reservation]);
+  }, [reservation, isOpen]);
 
   const calculateTotalPrice = () => {
     if (formData.roomId && formData.startDate && formData.endDate) {

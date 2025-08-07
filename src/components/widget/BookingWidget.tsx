@@ -37,6 +37,7 @@ interface Room {
   name: string;
   propertyName: string;
   pricePerNight: number;
+  pricingType: string;
 }
 
 interface WidgetConfig {
@@ -73,6 +74,19 @@ const durationOptions = [
   { value: 7, label: "7 heures" },
   { value: 8, label: "Journée complète" },
 ];
+
+// Helper function pour obtenir le label de pricing
+const getPricingLabel = (pricingType: string) => {
+  switch (pricingType) {
+    case "hour":
+      return "/heure";
+    case "day":
+      return "/jour";
+    case "night":
+    default:
+      return "/nuit";
+  }
+};
 
 // Composant ToasterWrapper pour s'assurer que les toasts s'affichent correctement dans l'iframe
 function ToasterWrapper() {
@@ -122,17 +136,35 @@ export function BookingWidget({ config }: BookingWidgetProps) {
   );
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [duration, setDuration] = useState<number>(1);
-  const [showQuote, setShowQuote] = useState(false);
+  const [quote, setQuote] = useState<number | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [isLoadingBooking, setIsLoadingBooking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [showQuote, setShowQuote] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currency, setCurrency] = useState<Currency>("EUR");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [existingReservations, setExistingReservations] = useState<
     Array<{ startDate: string; endDate: string }>
   >([]);
+  const [currency, setCurrency] = useState<Currency>("EUR");
+
+  // Helper function pour obtenir le label de pricing
+  const getPricingLabel = (pricingType: string) => {
+    switch (pricingType) {
+      case "hour":
+        return "/heure";
+      case "day":
+        return "/jour";
+      case "night":
+      default:
+        return "/nuit";
+    }
+  };
 
   // Form fields for booking
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -147,16 +179,9 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
   // Vérifier les conflits en temps réel quand les sélections changent
   useEffect(() => {
-    if (
-      showQuote &&
-      selectedRoom &&
-      selectedDate &&
-      selectedEndDate &&
-      selectedTime
-    ) {
+    if (selectedRoom && selectedDate && selectedEndDate && selectedTime) {
       const conflicts = checkConflicts();
       if (conflicts) {
-        setShowQuote(false);
         toast.error(
           "Ce créneau horaire n'est plus disponible. Veuillez choisir un autre horaire ou une autre date."
         );
@@ -202,24 +227,60 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     }
   };
 
-  // Fonction pour vérifier si une date est réservée
-  const isDateReserved = (date: Date) => {
+  // Fonction pour vérifier si une date est complètement réservée (tous les créneaux)
+  const isDateFullyReserved = (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
-    return existingReservations.some((reservation) => {
-      const start = new Date(reservation.startDate);
-      const end = new Date(reservation.endDate);
-      const checkDate = new Date(dateStr);
-      return checkDate >= start && checkDate < end;
+
+    // Vérifier si tous les créneaux horaires sont occupés pour cette date
+    const availableSlots = timeSlots.filter((time) => {
+      const selectedDateTime = new Date(date);
+      const [hours, minutes] = time.split(":").map(Number);
+      selectedDateTime.setHours(hours, minutes, 0, 0);
+
+      return !existingReservations.some((reservation) => {
+        const start = new Date(reservation.startDate);
+        const end = new Date(reservation.endDate);
+
+        // Si c'est la même date, vérifier les heures
+        if (start.toDateString() === date.toDateString()) {
+          const reservationStart = new Date(start);
+          const reservationEnd = new Date(end);
+
+          // Vérifier si le créneau chevauche la réservation existante
+          return (
+            selectedDateTime < reservationEnd &&
+            selectedDateTime.getTime() + 60 * 60 * 1000 > // 1 heure par défaut pour la vérification
+              reservationStart.getTime()
+          );
+        }
+
+        // Pour les dates différentes, vérifier si la date est dans la période
+        return selectedDateTime >= start && selectedDateTime < end;
+      });
     });
+
+    return availableSlots.length === 0;
   };
 
   // Fonction pour désactiver les dates dans le calendrier
   const disabledDates = (date: Date) => {
-    return date < new Date() || isDateReserved(date);
+    return date < new Date() || isDateFullyReserved(date);
+  };
+
+  // Fonction pour obtenir le nombre de créneaux disponibles pour une date
+  const getAvailableSlotsCount = (date: Date) => {
+    if (!selectedRoom) return timeSlots.length;
+
+    return timeSlots.filter((time) => isTimeSlotAvailable(time, date, duration))
+      .length;
   };
 
   // Fonction pour vérifier si un créneau horaire spécifique est disponible
-  const isTimeSlotAvailable = (time: string, date: Date) => {
+  const isTimeSlotAvailable = (
+    time: string,
+    date: Date,
+    selectedDuration: number = 1
+  ) => {
     if (!selectedRoom) return true;
 
     const selectedDateTime = new Date(date);
@@ -238,7 +299,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
         // Vérifier si le créneau demandé chevauche la réservation existante
         return (
           selectedDateTime < reservationEnd &&
-          selectedDateTime.getTime() + duration * 60 * 60 * 1000 >
+          selectedDateTime.getTime() + selectedDuration * 60 * 60 * 1000 >
             reservationStart.getTime()
         );
       }
@@ -258,15 +319,45 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     const [hours, minutes] = selectedTime.split(":").map(Number);
     startDateTime.setHours(hours, minutes, 0, 0);
 
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setHours(endDateTime.getHours() + duration);
+    // Calculer la fin de la réservation
+    let endDateTime = new Date(startDateTime);
+
+    // Si c'est la même journée, utiliser la durée
+    if (selectedDate.toDateString() === selectedEndDate.toDateString()) {
+      if (duration >= 8) {
+        // Journée complète
+        endDateTime.setDate(endDateTime.getDate() + 1);
+      } else {
+        // Durée horaire
+        endDateTime.setHours(endDateTime.getHours() + duration);
+      }
+    } else {
+      // Plusieurs jours, utiliser la date de fin
+      endDateTime = new Date(selectedEndDate);
+      endDateTime.setHours(23, 59, 59, 999); // Fin de la journée
+    }
 
     const conflicts = existingReservations.filter((reservation) => {
       const reservationStart = new Date(reservation.startDate);
       const reservationEnd = new Date(reservation.endDate);
 
-      // Vérifier le chevauchement
-      return startDateTime < reservationEnd && endDateTime > reservationStart;
+      // Vérifier le chevauchement temporel
+      // Un conflit existe si :
+      // 1. Le début de la nouvelle réservation est avant la fin de l'existante ET
+      // 2. La fin de la nouvelle réservation est après le début de l'existante
+      const hasConflict =
+        startDateTime < reservationEnd && endDateTime > reservationStart;
+
+      if (hasConflict) {
+        console.log("Conflit détecté:", {
+          newStart: startDateTime,
+          newEnd: endDateTime,
+          existingStart: reservationStart,
+          existingEnd: reservationEnd,
+        });
+      }
+
+      return hasConflict;
     });
 
     return conflicts.length > 0 ? conflicts : null;
@@ -274,7 +365,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
 
   // Filtrer les créneaux horaires disponibles pour la date sélectionnée
   const availableTimeSlots = timeSlots.filter((time) =>
-    isTimeSlotAvailable(time, selectedDate || new Date())
+    isTimeSlotAvailable(time, selectedDate || new Date(), duration)
   );
 
   const calculateQuote = () => {
@@ -284,20 +375,50 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     const basePrice = selectedRoom.pricePerNight;
     const start = new Date(selectedDate);
     const end = new Date(selectedEndDate);
-    const days = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const pricingType = selectedRoom.pricingType || "night";
 
-    if (days === 0) {
-      // Même jour - calcul horaire
+    // Calculer si c'est le même jour
+    const isSameDay = start.toDateString() === end.toDateString();
+
+    if (isSameDay) {
+      // Réservation dans la même journée
       if (duration >= 8) {
-        return basePrice; // Prix journée
+        // Journée complète
+        if (pricingType === "hour") {
+          return basePrice * 8; // 8 heures pour une journée complète
+        } else if (pricingType === "day") {
+          return basePrice; // Prix journalier
+        } else {
+          // pricingType === "night", utiliser le prix nuit pour une journée
+          return basePrice;
+        }
       } else {
-        return Math.round((basePrice / 24) * duration); // Prix horaire
+        // Durée horaire
+        if (pricingType === "hour") {
+          return basePrice * duration; // Prix par heure
+        } else if (pricingType === "day") {
+          return Math.round((basePrice / 8) * duration); // Convertir prix jour en horaire
+        } else {
+          // pricingType === "night", convertir en horaire (prix nuit / 24h)
+          return Math.round((basePrice / 24) * duration);
+        }
       }
     } else {
-      // Plusieurs jours
-      return basePrice * days;
+      // Réservation sur plusieurs jours
+      const days = Math.ceil(
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (pricingType === "hour") {
+        // Prix horaire, calculer pour des journées complètes (8h/jour)
+        return basePrice * 8 * days;
+      } else if (pricingType === "day") {
+        // Prix journalier
+        return basePrice * days;
+      } else {
+        // pricingType === "night", prix par nuit
+        return basePrice * days;
+      }
     }
   };
 
@@ -316,6 +437,13 @@ export function BookingWidget({ config }: BookingWidgetProps) {
       const conflicts = checkConflicts();
 
       if (conflicts) {
+        console.log("Conflits détectés:", conflicts);
+        console.log("Sélection actuelle:", {
+          date: selectedDate,
+          endDate: selectedEndDate,
+          time: selectedTime,
+          duration,
+        });
         toast.error(
           "Ce créneau horaire n'est pas disponible. Veuillez choisir un autre horaire ou une autre date."
         );
@@ -425,12 +553,6 @@ export function BookingWidget({ config }: BookingWidgetProps) {
     toast.info("Fonctionnalité de rappel bientôt disponible !");
   };
 
-  const testToast = () => {
-    toast.success("Test de toast réussi !");
-    toast.error("Test d'erreur !");
-    toast.info("Test d'information !");
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -452,13 +574,6 @@ export function BookingWidget({ config }: BookingWidgetProps) {
           Choisissez votre espace, sélectionnez vos dates et réservez
           instantanément.
         </p>
-        {/* Bouton de test temporaire */}
-        <button
-          onClick={testToast}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Test Toasts
-        </button>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
@@ -519,7 +634,8 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                         {room.name}
                       </div>
                       <div className="text-xs text-gray-600">
-                        {formatCurrency(room.pricePerNight, currency)}/jour
+                        {formatCurrency(room.pricePerNight, currency)}
+                        {getPricingLabel(room.pricingType)}
                       </div>
                     </div>
                   </SelectItem>
@@ -626,7 +742,7 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                       }}
                       disabled={(date) => {
                         if (!selectedDate) return date < new Date();
-                        return date < selectedDate || isDateReserved(date);
+                        return date < selectedDate || isDateFullyReserved(date);
                       }}
                       initialFocus
                       locale={fr}
@@ -677,7 +793,8 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                     {timeSlots.map((time) => {
                       const isAvailable = isTimeSlotAvailable(
                         time,
-                        selectedDate || new Date()
+                        selectedDate || new Date(),
+                        duration
                       );
                       return (
                         <SelectItem
@@ -710,7 +827,10 @@ export function BookingWidget({ config }: BookingWidgetProps) {
                   availableTimeSlots.length > 0 &&
                   availableTimeSlots.length < timeSlots.length && (
                     <p className="text-xs text-orange-500 mt-1">
-                      Certains créneaux sont occupés
+                      {availableTimeSlots.length} créneau
+                      {availableTimeSlots.length > 1 ? "x" : ""} disponible
+                      {availableTimeSlots.length > 1 ? "s" : ""} sur{" "}
+                      {timeSlots.length}
                     </p>
                   )}
               </div>
