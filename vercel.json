@@ -1,0 +1,12 @@
+{
+  "buildCommand": "bash scripts/build-vercel.sh",
+  "installCommand": "pnpm install && pnpm prisma generate",
+  "env": {
+    "PRISMA_GENERATE_DATAPROXY": "true"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+} 
