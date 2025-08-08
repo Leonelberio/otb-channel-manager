@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       if (allConfigs.length > 0) {
         // Utiliser tous les agendas configurés, en supprimant les doublons
         calendarsToFetch = [
-          ...new Set(allConfigs.map((config: any) => config.calendarId)),
+          ...new Set(allConfigs.map((config) => config.calendarId)),
         ];
       } else {
         // Si aucune configuration, ne pas afficher d'événements pour "Tous les espaces"
