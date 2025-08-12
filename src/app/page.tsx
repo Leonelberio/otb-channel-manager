@@ -10,7 +10,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-airbnb-red rounded-md flex items-center justify-center mr-3">
+              <div className="w-8 h-8 bg-main rounded-md flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-sm">OTB</span>
               </div>
               <h1 className="text-xl font-semibold text-airbnb-charcoal">
@@ -29,7 +29,7 @@ export default function HomePage() {
               </Link>
               <Link href="/auth/signup">
                 <Button
-                  className="bg-airbnb-red hover:bg-airbnb-dark-red text-white"
+                  className="bg-main hover:bg-main-dark text-white"
                   size="sm"
                 >
                   Commencer
@@ -59,8 +59,7 @@ export default function HomePage() {
           <h2 className="text-5xl md:text-6xl font-bold text-airbnb-charcoal mb-8 leading-tight">
             Un système de réservation qui
             <br />
-            fonctionne comme un{" "}
-            <span className="text-airbnb-red">Organiseur</span>
+            fonctionne comme un <span className="text-main">Organiseur</span>
           </h2>
 
           <p className="text-xl text-airbnb-dark-gray mb-12 max-w-3xl mx-auto leading-relaxed">
@@ -73,7 +72,7 @@ export default function HomePage() {
             <Link href="/auth/signup">
               <Button
                 size="lg"
-                className="bg-airbnb-red hover:bg-airbnb-dark-red text-white px-8 py-4 text-lg font-medium rounded-lg"
+                className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium rounded-lg"
               >
                 ✨ Commencer gratuitement
               </Button>
@@ -211,7 +210,7 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-airbnb-red font-semibold">150€</span>
+                    <span className="text-main font-semibold">150€</span>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -228,7 +227,7 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-airbnb-red font-semibold">80€</span>
+                    <span className="text-main font-semibold">80€</span>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -245,11 +244,11 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-airbnb-red font-semibold">120€</span>
+                    <span className="text-main font-semibold">120€</span>
                   </div>
                 </div>
 
-                <Button className="w-full mt-6 bg-airbnb-red hover:bg-airbnb-dark-red text-white">
+                <Button className="w-full mt-6 bg-main hover:bg-main-dark text-white">
                   Ajouter un espace
                 </Button>
               </div>
@@ -269,7 +268,7 @@ export default function HomePage() {
           <Link href="/auth/signup">
             <Button
               size="lg"
-              className="bg-airbnb-red hover:bg-airbnb-dark-red text-white px-8 py-4 text-lg font-medium"
+              className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium"
             >
               Commencer maintenant
             </Button>
@@ -282,7 +281,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-6 h-6 bg-airbnb-red rounded-md flex items-center justify-center mr-2">
+              <div className="w-6 h-6 bg-main rounded-md flex items-center justify-center mr-2">
                 <span className="text-white font-bold text-xs">OTB</span>
               </div>
               <span className="text-lg font-semibold text-airbnb-charcoal">

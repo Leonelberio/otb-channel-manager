@@ -86,7 +86,7 @@ export default function SignUpPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <Link href="/" className="flex items-center">
-              <div className="w-8 h-8 bg-airbnb-red rounded-md flex items-center justify-center mr-3">
+              <div className="w-8 h-8 bg-main rounded-md flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-sm">OTB</span>
               </div>
               <h1 className="text-xl font-semibold text-airbnb-charcoal">
@@ -200,7 +200,7 @@ export default function SignUpPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-airbnb-red hover:bg-airbnb-dark-red text-white py-3 text-base font-medium"
+                className="w-full bg-main hover:bg-main-dark text-white py-3 text-base font-medium"
                 disabled={isLoading}
               >
                 {isLoading ? "Création du compte..." : "Créer mon compte"}
@@ -212,7 +212,7 @@ export default function SignUpPage() {
                 Déjà un compte ?{" "}
                 <Link
                   href="/auth/signin"
-                  className="text-airbnb-red hover:text-airbnb-dark-red font-medium transition-colors"
+                  className="text-main hover:text-main-dark font-medium transition-colors"
                 >
                   Se connecter
                 </Link>
@@ -281,14 +281,14 @@ export default function SignUpPage() {
                 En créant un compte, vous acceptez nos{" "}
                 <Link
                   href="/terms"
-                  className="text-airbnb-red hover:text-airbnb-dark-red underline"
+                  className="text-main hover:text-main-dark underline"
                 >
                   Conditions d&apos;utilisation
                 </Link>{" "}
                 et notre{" "}
                 <Link
                   href="/privacy"
-                  className="text-airbnb-red hover:text-airbnb-dark-red underline"
+                  className="text-main hover:text-main-dark underline"
                 >
                   Politique de confidentialité
                 </Link>

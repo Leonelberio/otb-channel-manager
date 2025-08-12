@@ -113,7 +113,7 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
       {/* Logo/Brand */}
       <div className="p-4 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-airbnb-red rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-main rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">OTB</span>
           </div>
           {!isCollapsed && (
@@ -145,7 +145,12 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
                 {organisation?.name}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Gérer les organisations</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/organisations">
+                  <Users className="mr-2 h-4 w-4" />
+                  Gérer les organisations
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -165,7 +170,7 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
                     onClick={() => setPropertiesExpanded(!propertiesExpanded)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       item.current
-                        ? "bg-airbnb-red text-white"
+                        ? "bg-main text-white"
                         : "text-airbnb-charcoal hover:bg-gray-100"
                     }`}
                   >
@@ -189,7 +194,7 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
                           href={subItem.href}
                           className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                             subItem.current
-                              ? "bg-airbnb-red/10 text-airbnb-red font-medium"
+                              ? "bg-main/10 text-main font-medium"
                               : "text-airbnb-dark-gray hover:bg-gray-50 hover:text-airbnb-charcoal"
                           }`}
                         >
@@ -209,7 +214,7 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
                 href={item.href}
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   item.current
-                    ? "bg-airbnb-red text-white"
+                    ? "bg-main text-white"
                     : "text-airbnb-charcoal hover:bg-gray-100"
                 }`}
               >
@@ -228,7 +233,7 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-airbnb-red rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-main rounded-full flex items-center justify-center">
                     <User className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1 text-left">

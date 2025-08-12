@@ -524,7 +524,7 @@ export function ReservationModal({
           <Button
             onClick={handleSave}
             disabled={isLoading}
-            className="bg-airbnb-red hover:bg-airbnb-dark-red"
+            className="bg-main hover:bg-main-dark"
           >
             {isLoading
               ? "Sauvegarde..."

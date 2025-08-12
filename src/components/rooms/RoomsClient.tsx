@@ -161,7 +161,7 @@ export function RoomsClient({
         </div>
         <Button
           variant="default"
-          className="bg-airbnb-red hover:bg-airbnb-dark-red"
+          className="bg-main hover:bg-main-dark"
           onClick={() => setIsCreateModalOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -183,7 +183,7 @@ export function RoomsClient({
           </p>
           <Button
             variant="default"
-            className="bg-airbnb-red hover:bg-airbnb-dark-red"
+            className="bg-main hover:bg-main-dark"
             onClick={() => setIsCreateModalOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -214,7 +214,7 @@ export function RoomsClient({
                   )}
 
                   {room.pricePerNight && (
-                    <div className="flex items-center text-lg font-semibold text-airbnb-red mb-3">
+                    <div className="flex items-center text-lg font-semibold text-main mb-3">
                       <Euro className="h-4 w-4 mr-1" />
                       <PriceDisplay
                         amount={room.pricePerNight}

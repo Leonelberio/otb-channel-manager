@@ -60,12 +60,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address, description } = body;
+    const { name, address, description, propertyType } = body;
 
     // Validation
     if (!name || !name.trim()) {
       return NextResponse.json(
         { error: "Le nom de la propriété est requis" },
+        { status: 400 }
+      );
+    }
+
+    if (!propertyType || !propertyType.trim()) {
+      return NextResponse.json(
+        { error: "Le type de propriété est requis" },
+        { status: 400 }
+      );
+    }
+
+    // Validate property type
+    const validPropertyTypes = ["hotel", "espace"];
+    if (!validPropertyTypes.includes(propertyType)) {
+      return NextResponse.json(
+        { error: "Type de propriété invalide" },
         { status: 400 }
       );
     }
@@ -88,6 +104,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         address: address?.trim() || null,
         description: description?.trim() || null,
+        propertyType: propertyType.trim(),
         organisationId: userOrganisation.organisationId,
       },
     });

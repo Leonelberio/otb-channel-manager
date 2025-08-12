@@ -220,7 +220,7 @@ export function EquipmentModal({
                 className={`transition-colors ${
                   errors.roomId
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red"
+                    : "border-gray-300 focus:border-main focus:ring-main"
                 }`}
               >
                 <SelectValue placeholder="Sélectionnez une chambre/espace" />
@@ -262,7 +262,7 @@ export function EquipmentModal({
                 className={`transition-colors ${
                   errors.name
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red"
+                    : "border-gray-300 focus:border-main focus:ring-main"
                 }`}
                 disabled={isLoading}
               />
@@ -286,7 +286,7 @@ export function EquipmentModal({
                 }
                 disabled={isLoading}
               >
-                <SelectTrigger className="border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red">
+                <SelectTrigger className="border-gray-300 focus:border-main focus:ring-main">
                   <SelectValue>
                     <div className="flex items-center">
                       <IconComponent className="h-4 w-4 mr-2" />
@@ -321,7 +321,7 @@ export function EquipmentModal({
               placeholder="Décrivez cet équipement en détail..."
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
-              className="min-h-[100px] border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red resize-none"
+              className="min-h-[100px] border-gray-300 focus:border-main focus:ring-main resize-none"
               disabled={isLoading}
             />
             <p className="text-xs text-airbnb-dark-gray">
@@ -355,7 +355,7 @@ export function EquipmentModal({
             <Button
               type="submit"
               disabled={isLoading}
-              className="flex-1 bg-airbnb-red hover:bg-airbnb-dark-red text-white"
+              className="flex-1 bg-main hover:bg-main-dark text-white"
             >
               {isLoading ? (
                 <>

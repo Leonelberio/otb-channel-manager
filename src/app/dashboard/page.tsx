@@ -90,10 +90,7 @@ export default async function DashboardPage() {
               Bienvenue, {session?.user?.name}
             </p>
           </div>
-          <Button
-            variant="default"
-            className="bg-airbnb-red hover:bg-airbnb-dark-red"
-          >
+          <Button variant="default" className="bg-main hover:bg-main-dark">
             <Plus className="h-4 w-4 mr-2" />
             Nouvelle réservation
           </Button>
@@ -151,10 +148,7 @@ export default async function DashboardPage() {
               <p className="text-airbnb-dark-gray mb-4">
                 Aucune propriété trouvée
               </p>
-              <Button
-                variant="default"
-                className="bg-airbnb-red hover:bg-airbnb-dark-red"
-              >
+              <Button variant="default" className="bg-main hover:bg-main-dark">
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter une propriété
               </Button>
@@ -216,7 +210,7 @@ export default async function DashboardPage() {
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-airbnb-red rounded-full"></div>
+                <div className="w-2 h-2 bg-main rounded-full"></div>
                 <span>Connecter Google Calendar</span>
               </div>
               <div className="flex items-center space-x-3">

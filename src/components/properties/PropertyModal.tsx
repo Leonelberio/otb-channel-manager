@@ -7,19 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, Building2, Coffee } from "lucide-react";
 
 interface Property {
   id?: string;
   name: string;
   address?: string;
   description?: string;
+  propertyType?: string;
   images?: string[];
 }
 
@@ -42,8 +50,24 @@ export function PropertyModal({
     name: property?.name || "",
     address: property?.address || "",
     description: property?.description || "",
+    propertyType: property?.propertyType || "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const propertyTypes = [
+    {
+      value: "hotel",
+      label: "Hôtel",
+      description: "Hôtel, auberge, gîte, maison d'hôtes",
+      icon: Building2,
+    },
+    {
+      value: "espace",
+      label: "Espace",
+      description: "Coworking, coliving, salle de réunion, résidence",
+      icon: Coffee,
+    },
+  ];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -58,6 +82,10 @@ export function PropertyModal({
 
     if (!formData.name.trim()) {
       newErrors.name = "Le nom de la propriété est requis";
+    }
+
+    if (!formData.propertyType) {
+      newErrors.propertyType = "Le type de propriété est requis";
     }
 
     setErrors(newErrors);
@@ -97,7 +125,7 @@ export function PropertyModal({
       onClose();
 
       // Reset form
-      setFormData({ name: "", address: "", description: "" });
+      setFormData({ name: "", address: "", description: "", propertyType: "" });
     } catch (error) {
       console.error("Erreur:", error);
       setErrors({
@@ -112,7 +140,7 @@ export function PropertyModal({
   const handleClose = () => {
     if (!isLoading) {
       onClose();
-      setFormData({ name: "", address: "", description: "" });
+      setFormData({ name: "", address: "", description: "", propertyType: "" });
       setErrors({});
     }
   };
@@ -142,6 +170,54 @@ export function PropertyModal({
             </div>
           )}
 
+          {/* Property Type */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="propertyType"
+              className="text-sm font-medium text-airbnb-charcoal"
+            >
+              Type de propriété *
+            </Label>
+            <Select
+              value={formData.propertyType}
+              onValueChange={(value) =>
+                handleInputChange("propertyType", value)
+              }
+              disabled={isLoading}
+            >
+              <SelectTrigger
+                className={`transition-colors ${
+                  errors.propertyType
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:border-main focus:ring-main"
+                }`}
+              >
+                <SelectValue placeholder="Sélectionnez le type de propriété" />
+              </SelectTrigger>
+              <SelectContent>
+                {propertyTypes.map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center space-x-3">
+                        <Icon className="h-4 w-4 text-main" />
+                        <div>
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-xs text-gray-500">
+                            {type.description}
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {errors.propertyType && (
+              <p className="text-red-500 text-xs mt-1">{errors.propertyType}</p>
+            )}
+          </div>
+
           {/* Property name */}
           <div className="space-y-2">
             <Label
@@ -159,7 +235,7 @@ export function PropertyModal({
               className={`transition-colors ${
                 errors.name
                   ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                  : "border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red"
+                  : "border-gray-300 focus:border-main focus:ring-main"
               }`}
               disabled={isLoading}
             />
@@ -184,7 +260,7 @@ export function PropertyModal({
                 placeholder="123 Rue de la Paix, 75001 Paris"
                 value={formData.address}
                 onChange={(e) => handleInputChange("address", e.target.value)}
-                className="pl-10 border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red"
+                className="pl-10 border-gray-300 focus:border-main focus:ring-main"
                 disabled={isLoading}
               />
             </div>
@@ -203,7 +279,7 @@ export function PropertyModal({
               placeholder="Décrivez votre propriété..."
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
-              className="min-h-[100px] border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red resize-none"
+              className="min-h-[100px] border-gray-300 focus:border-main focus:ring-main resize-none"
               disabled={isLoading}
             />
             <p className="text-xs text-airbnb-dark-gray">
@@ -226,7 +302,7 @@ export function PropertyModal({
             <Button
               type="submit"
               disabled={isLoading}
-              className="flex-1 bg-airbnb-red hover:bg-airbnb-dark-red text-white"
+              className="flex-1 bg-main hover:bg-main-dark text-white"
             >
               {isLoading ? (
                 <>

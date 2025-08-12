@@ -164,7 +164,7 @@ export function ReservationsClient({
         </div>
         <Button
           variant="default"
-          className="bg-airbnb-red hover:bg-airbnb-dark-red"
+          className="bg-main hover:bg-main-dark"
           onClick={handleNewReservation}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -183,7 +183,7 @@ export function ReservationsClient({
           </p>
           <Button
             variant="default"
-            className="bg-airbnb-red hover:bg-airbnb-dark-red"
+            className="bg-main hover:bg-main-dark"
             onClick={handleNewReservation}
           >
             <Plus className="h-4 w-4 mr-2" />

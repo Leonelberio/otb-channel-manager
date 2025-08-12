@@ -133,7 +133,7 @@ export function EquipmentsClient({
         </div>
         <Button
           variant="default"
-          className="bg-airbnb-red hover:bg-airbnb-dark-red"
+          className="bg-main hover:bg-main-dark"
           onClick={() => setIsCreateModalOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -152,7 +152,7 @@ export function EquipmentsClient({
           </p>
           <Button
             variant="default"
-            className="bg-airbnb-red hover:bg-airbnb-dark-red"
+            className="bg-main hover:bg-main-dark"
             onClick={() => setIsCreateModalOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -175,7 +175,7 @@ export function EquipmentsClient({
                     {roomData.propertyName}
                   </p>
                 </div>
-                <span className="bg-airbnb-red text-white text-xs px-2 py-1 rounded-full">
+                <span className="bg-main text-white text-xs px-2 py-1 rounded-full">
                   {roomData.equipments.length} équipement
                   {roomData.equipments.length > 1 ? "s" : ""}
                 </span>

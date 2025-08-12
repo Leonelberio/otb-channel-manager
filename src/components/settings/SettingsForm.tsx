@@ -174,7 +174,7 @@ export function SettingsForm({
                 }
                 disabled={isLoading}
               >
-                <SelectTrigger className="border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red">
+                <SelectTrigger className="border-gray-300 focus:border-main focus:ring-main">
                   <SelectValue placeholder="Sélectionnez un type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,7 +219,7 @@ export function SettingsForm({
                 }
                 disabled={isLoading}
               >
-                <SelectTrigger className="border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red">
+                <SelectTrigger className="border-gray-300 focus:border-main focus:ring-main">
                   <SelectValue placeholder="Sélectionnez une langue" />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,7 +256,7 @@ export function SettingsForm({
                 onValueChange={(value) => handleInputChange("currency", value)}
                 disabled={isLoading}
               >
-                <SelectTrigger className="border-gray-300 focus:border-airbnb-red focus:ring-airbnb-red">
+                <SelectTrigger className="border-gray-300 focus:border-main focus:ring-main">
                   <SelectValue placeholder="Sélectionnez une devise" />
                 </SelectTrigger>
                 <SelectContent>
@@ -457,7 +457,7 @@ export function SettingsForm({
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-airbnb-red hover:bg-airbnb-dark-red text-white"
+            className="bg-main hover:bg-main-dark text-white"
           >
             {isLoading ? (
               <>

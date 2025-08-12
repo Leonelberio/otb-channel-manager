@@ -18,6 +18,10 @@ module.exports = {
   	},
   	extend: {
   		colors: {
+  			'main': '#8ABF37',
+  			'main-dark': '#7AAD2F',
+  			'main-light': '#9ACF47',
+  			'main-lighter': '#AADF57',
   			'airbnb-red': '#FF5A5F',
   			'airbnb-dark-red': '#E14D52',
   			'airbnb-light-gray': '#F7F7F7',

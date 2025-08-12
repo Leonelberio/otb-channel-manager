@@ -10,7 +10,7 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%; /* Airbnb Red */
+    --primary: 88 48% 48%; /* Main color #8ABF37 */
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --ring: 88 48% 48%; /* Main color #8ABF37 */
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -38,8 +38,8 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%; /* Airbnb Red */
-    --primary-foreground: 0 0% 9%;
+    --primary: 88 48% 48%; /* Main color #8ABF37 */
+    --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
@@ -50,7 +50,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --ring: 88 48% 48%; /* Main color #8ABF37 */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -91,17 +91,17 @@
   }
 }
 
-/* Airbnb inspired custom styles */
+/* Main color inspired custom styles */
 .airbnb-card {
   @apply bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200;
 }
 
 .airbnb-input {
-  @apply border-gray-300 rounded-lg focus:border-airbnb-red focus:ring-1 focus:ring-airbnb-red transition-colors;
+  @apply border-gray-300 rounded-lg focus:border-main focus:ring-1 focus:ring-main transition-colors;
 }
 
 .airbnb-button {
-  @apply bg-airbnb-red text-white rounded-lg hover:bg-airbnb-dark-red transition-colors duration-200 font-medium;
+  @apply bg-main text-white rounded-lg hover:bg-main-dark transition-colors duration-200 font-medium;
 }
 
 .sidebar-nav {
@@ -113,5 +113,5 @@
 }
 
 .sidebar-nav-item.active {
-  @apply bg-airbnb-red text-white hover:bg-airbnb-dark-red;
+  @apply bg-main text-white hover:bg-main-dark;
 }

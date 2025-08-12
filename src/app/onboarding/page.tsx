@@ -115,7 +115,7 @@ export default function OnboardingPage() {
                   key={step}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     step <= currentStep
-                      ? "bg-airbnb-red text-white"
+                      ? "bg-main text-white"
                       : "bg-gray-200 text-gray-600"
                   }`}
                 >
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-airbnb-red h-2 rounded-full transition-all duration-300"
+                className="bg-main h-2 rounded-full transition-all duration-300"
                 style={{ width: `${(currentStep / 4) * 100}%` }}
               />
             </div>
@@ -169,7 +169,7 @@ export default function OnboardingPage() {
                       onChange={(e) =>
                         updateData("preferredLanguage", e.target.value)
                       }
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:border-airbnb-red focus:ring-1 focus:ring-airbnb-red"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:border-main focus:ring-1 focus:ring-main"
                     >
                       <option value="fr">Français</option>
                       <option value="en">English</option>
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
                     onClick={() => updateData("establishmentType", "hotel")}
                     className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
                       onboardingData.establishmentType === "hotel"
-                        ? "border-airbnb-red bg-red-50"
+                        ? "border-main bg-red-50"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -208,7 +208,7 @@ export default function OnboardingPage() {
                     onClick={() => updateData("establishmentType", "espace")}
                     className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
                       onboardingData.establishmentType === "espace"
-                        ? "border-airbnb-red bg-red-50"
+                        ? "border-main bg-red-50"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -266,7 +266,7 @@ export default function OnboardingPage() {
                       onChange={(e) =>
                         updateData("propertyType", e.target.value)
                       }
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:border-airbnb-red focus:ring-1 focus:ring-airbnb-red"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:border-main focus:ring-1 focus:ring-main"
                     >
                       <option value="">Sélectionnez un type</option>
                       {onboardingData.establishmentType === "hotel" ? (
@@ -352,7 +352,7 @@ export default function OnboardingPage() {
 
                 {currentStep < 4 ? (
                   <Button
-                    variant="airbnb"
+                    variant="main"
                     onClick={nextStep}
                     disabled={
                       (currentStep === 1 && !onboardingData.organizationName) ||
@@ -366,7 +366,7 @@ export default function OnboardingPage() {
                   </Button>
                 ) : (
                   <Button
-                    variant="airbnb"
+                    variant="main"
                     onClick={completeOnboarding}
                     disabled={isLoading || !onboardingData.unitName}
                   >
