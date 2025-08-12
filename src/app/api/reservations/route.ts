@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
+    // Récupérer les paramètres de requête
+    const { searchParams } = new URL(request.url);
+    const roomId = searchParams.get("roomId");
+
     // Récupérer l'organisation de l'utilisateur
     const userOrganisation = await prisma.userOrganisation.findFirst({
       where: { userId: session.user.id },
@@ -20,6 +24,7 @@ export async function GET(request: NextRequest) {
             properties: {
               include: {
                 rooms: {
+                  where: roomId ? { id: roomId } : undefined,
                   include: {
                     reservations: {
                       orderBy: {
@@ -43,47 +48,96 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer les réservations avec SQL brut pour inclure startTime et duration
-    const reservationsResult = await prisma.$queryRaw<
-      Array<{
-        id: string;
-        roomId: string;
-        guestName: string;
-        guestEmail: string | null;
-        startDate: string;
-        endDate: string;
-        startTime: string | null;
-        duration: number | null;
-        status: string;
-        totalPrice: string | null;
-        notes: string | null;
-        createdAt: string;
-        updatedAt: string;
-        roomName: string;
-        propertyName: string;
-      }>
-    >`
-      SELECT 
-        r.id,
-        r.room_id as "roomId",
-        r.guest_name as "guestName",
-        r.guest_email as "guestEmail",
-        r.start_date as "startDate",
-        r.end_date as "endDate",
-        r.start_time as "startTime",
-        r.duration,
-        r.status,
-        r.total_price as "totalPrice",
-        r.notes,
-        r.created_at as "createdAt",
-        r.updated_at as "updatedAt",
-        rm.name as "roomName",
-        p.name as "propertyName"
-      FROM reservations r
-      JOIN rooms rm ON r.room_id = rm.id
-      JOIN properties p ON rm.property_id = p.id
-      WHERE p.organisation_id = ${userOrganisation.organisationId}
-      ORDER BY r.created_at DESC
-    `;
+    let reservationsResult;
+
+    if (roomId) {
+      // Query with roomId filter
+      reservationsResult = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          roomId: string;
+          guestName: string;
+          guestEmail: string | null;
+          startDate: string;
+          endDate: string;
+          startTime: string | null;
+          duration: number | null;
+          status: string;
+          totalPrice: string | null;
+          notes: string | null;
+          createdAt: string;
+          updatedAt: string;
+          roomName: string;
+          propertyName: string;
+        }>
+      >`
+        SELECT 
+          r.id,
+          r.room_id as "roomId",
+          r.guest_name as "guestName",
+          r.guest_email as "guestEmail",
+          r.start_date as "startDate",
+          r.end_date as "endDate",
+          r.start_time as "startTime",
+          r.duration,
+          r.status,
+          r.total_price as "totalPrice",
+          r.notes,
+          r.created_at as "createdAt",
+          r.updated_at as "updatedAt",
+          rm.name as "roomName",
+          p.name as "propertyName"
+        FROM reservations r
+        JOIN rooms rm ON r.room_id = rm.id
+        JOIN properties p ON rm.property_id = p.id
+        WHERE p.organisation_id = ${userOrganisation.organisationId}
+        AND r.room_id = ${roomId}
+        ORDER BY r.created_at DESC
+      `;
+    } else {
+      // Query without roomId filter
+      reservationsResult = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          roomId: string;
+          guestName: string;
+          guestEmail: string | null;
+          startDate: string;
+          endDate: string;
+          startTime: string | null;
+          duration: number | null;
+          status: string;
+          totalPrice: string | null;
+          notes: string | null;
+          createdAt: string;
+          updatedAt: string;
+          roomName: string;
+          propertyName: string;
+        }>
+      >`
+        SELECT 
+          r.id,
+          r.room_id as "roomId",
+          r.guest_name as "guestName",
+          r.guest_email as "guestEmail",
+          r.start_date as "startDate",
+          r.end_date as "endDate",
+          r.start_time as "startTime",
+          r.duration,
+          r.status,
+          r.total_price as "totalPrice",
+          r.notes,
+          r.created_at as "createdAt",
+          r.updated_at as "updatedAt",
+          rm.name as "roomName",
+          p.name as "propertyName"
+        FROM reservations r
+        JOIN rooms rm ON r.room_id = rm.id
+        JOIN properties p ON rm.property_id = p.id
+        WHERE p.organisation_id = ${userOrganisation.organisationId}
+        ORDER BY r.created_at DESC
+      `;
+    }
 
     // Convertir les données
     const reservations = reservationsResult.map((reservation) => ({
