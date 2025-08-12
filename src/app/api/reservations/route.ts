@@ -227,71 +227,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer la réservation avec SQL brut
-    const reservationId = `reservation_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    // Valider le statut
+    const validStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
+    const finalStatus =
+      status && validStatuses.includes(status) ? status : "PENDING";
 
-    await prisma.$executeRaw`
-      INSERT INTO reservations (
-        id, room_id, guest_name, guest_email, start_date, end_date, 
-        start_time, duration, status, total_price, notes, created_at, updated_at
-      ) VALUES (
-        ${reservationId},
-        ${roomId},
-        ${guestName},
-        ${guestEmail || null},
-        ${start},
-        ${end},
-        ${startTime || null},
-        ${duration ? parseInt(duration) : null},
-        ${status || "PENDING"},
-        ${totalPrice ? parseFloat(totalPrice) : null},
-        ${notes || null},
-        NOW(),
-        NOW()
-      )
-    `;
+    // Créer la réservation avec Prisma (plus sûr que SQL brut)
+    const createdReservation = await prisma.reservation.create({
+      data: {
+        id: `reservation_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+        roomId,
+        guestName,
+        guestEmail: guestEmail || null,
+        startDate: start,
+        endDate: end,
+        startTime: startTime || null,
+        duration: duration ? parseInt(duration) : null,
+        status: finalStatus as
+          | "PENDING"
+          | "CONFIRMED"
+          | "CANCELLED"
+          | "COMPLETED",
+        totalPrice: totalPrice ? parseFloat(totalPrice) : null,
+        notes: notes || null,
+      },
+    });
 
-    // Récupérer la réservation créée
-    const createdReservationResult = await prisma.$queryRaw<
-      Array<{
-        id: string;
-        roomId: string;
-        guestName: string;
-        guestEmail: string | null;
-        startDate: string;
-        endDate: string;
-        startTime: string | null;
-        duration: number | null;
-        status: string;
-        totalPrice: string | null;
-        notes: string | null;
-        createdAt: string;
-        updatedAt: string;
-      }>
-    >`
-      SELECT 
-        id,
-        room_id as "roomId",
-        guest_name as "guestName",
-        guest_email as "guestEmail",
-        start_date as "startDate",
-        end_date as "endDate",
-        start_time as "startTime",
-        duration,
-        status,
-        total_price as "totalPrice",
-        notes,
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-      FROM reservations 
-      WHERE id = ${reservationId}
-    `;
-
-    const reservation = createdReservationResult[0];
-
-    return NextResponse.json({ reservation });
+    return NextResponse.json({ reservation: createdReservation });
   } catch (error) {
     console.error("Erreur lors de la création de la réservation:", error);
     return NextResponse.json(
