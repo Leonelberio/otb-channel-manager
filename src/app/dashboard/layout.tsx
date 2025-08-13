@@ -78,6 +78,7 @@ export default async function DashboardLayout({
         organisation={organisation}
         userPreferences={userPreferences}
         properties={properties}
+        hideInitially={hideSidebar}
       />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
