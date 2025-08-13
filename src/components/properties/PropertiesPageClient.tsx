@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PropertyModal } from "@/components/properties/PropertyModal";
 import {
@@ -67,6 +69,7 @@ export function PropertiesPageClient({
     null
   );
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
 
   const getPropertyIcon = (establishmentType: string) => {
     return establishmentType === "hotel" ? Hotel : Building;
@@ -84,11 +87,18 @@ export function PropertiesPageClient({
 
   const handleDeleteClick = (property: PropertyData) => {
     setPropertyToDelete(property);
+    setDeleteConfirmationName("");
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (!propertyToDelete) return;
+
+    // Verify that the user typed the correct property name
+    if (deleteConfirmationName !== propertyToDelete.name) {
+      toast.error("Le nom de la propriété ne correspond pas");
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -110,8 +120,11 @@ export function PropertiesPageClient({
       setIsDeleting(false);
       setDeleteDialogOpen(false);
       setPropertyToDelete(null);
+      setDeleteConfirmationName("");
     }
   };
+
+  const isDeleteEnabled = deleteConfirmationName === propertyToDelete?.name;
 
   const headerRightContent = (
     <div className="flex items-center space-x-3">
@@ -261,7 +274,7 @@ export function PropertiesPageClient({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-md hover:bg-gray-50"
+                          className="h-8 w-8 p-0 bg-white shadow-md hover:bg-gray-50"
                           onClick={(e) => e.preventDefault()}
                         >
                           <MoreVertical className="h-4 w-4" />
@@ -332,6 +345,23 @@ export function PropertiesPageClient({
               supprimées.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="confirmationName">
+                Pour confirmer, tapez le nom de la propriété :{" "}
+                <strong>{propertyToDelete?.name}</strong>
+              </Label>
+              <Input
+                id="confirmationName"
+                value={deleteConfirmationName}
+                onChange={(e) => setDeleteConfirmationName(e.target.value)}
+                placeholder="Tapez le nom de la propriété"
+                disabled={isDeleting}
+              />
+            </div>
+          </div>
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -343,7 +373,7 @@ export function PropertiesPageClient({
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={isDeleting}
+              disabled={isDeleting || !isDeleteEnabled}
             >
               {isDeleting ? "Suppression..." : "Supprimer"}
             </Button>
