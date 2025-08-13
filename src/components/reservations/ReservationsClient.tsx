@@ -30,6 +30,7 @@ interface Room {
   name: string;
   propertyName: string;
   pricePerNight: number;
+  type: "hotel" | "space"; // Add the type field
 }
 
 interface Reservation {
@@ -154,16 +155,8 @@ export function ReservationsClient({
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-airbnb-charcoal">
-            Réservations
-          </h1>
-          <p className="text-airbnb-dark-gray mt-2">
-            Gérez toutes vos réservations ({reservations.length})
-          </p>
-        </div>
+    <div>
+      <div className="flex justify-end items-center mb-6">
         <Button
           variant="default"
           className="bg-main hover:bg-main-dark"

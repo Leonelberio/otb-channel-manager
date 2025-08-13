@@ -35,14 +35,6 @@ export default function CalendarPage() {
     }
   }, [searchParams]);
 
-  const handleAddEvent = (date: Date) => {
-    console.log("Ajouter un événement pour:", date);
-    // TODO: Ouvrir un modal pour ajouter un événement
-    toast.info(
-      `Ajouter un événement pour le ${date.toLocaleDateString("fr-FR")}`
-    );
-  };
-
   return (
     <div className="p-6">
       {/* En-tête */}
@@ -74,7 +66,7 @@ export default function CalendarPage() {
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-6">
-          <CalendarView onAddEvent={handleAddEvent} />
+          <CalendarView />
         </TabsContent>
 
         <TabsContent value="config" className="space-y-6">

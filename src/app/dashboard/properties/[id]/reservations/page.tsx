@@ -69,6 +69,7 @@ export default async function PropertyReservationsPage({
     name: room.name,
     propertyName: property.name,
     pricePerNight: room.pricePerNight ? Number(room.pricePerNight) : 0,
+    type: "space" as const, // Default to space type for now
   }));
 
   // Get currency from user preferences

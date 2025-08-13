@@ -21,28 +21,6 @@ export async function GET(request: NextRequest) {
     // Construire les filtres pour les propriétés
     const propertyFilter = propertyId ? { id: propertyId } : undefined;
 
-    // Construire les filtres pour les réservations
-    const reservationFilters: any = {
-      orderBy: {
-        createdAt: "desc",
-      },
-    };
-
-    // Ajouter les filtres de date si fournis
-    if (startDate || endDate) {
-      reservationFilters.where = {};
-      if (startDate) {
-        reservationFilters.where.startDate = {
-          gte: new Date(startDate),
-        };
-      }
-      if (endDate) {
-        reservationFilters.where.endDate = {
-          lte: new Date(endDate),
-        };
-      }
-    }
-
     // Récupérer l'organisation de l'utilisateur
     const userOrganisation = await prisma.userOrganisation.findFirst({
       where: { userId: session.user.id },
@@ -50,12 +28,15 @@ export async function GET(request: NextRequest) {
         organisation: {
           include: {
             properties: {
+              where: propertyFilter,
               include: {
                 rooms: {
                   where: roomId ? { id: roomId } : undefined,
                   include: {
                     reservations: {
-                      ...reservationFilters,
+                      orderBy: {
+                        createdAt: "desc",
+                      },
                     },
                   },
                 },
@@ -166,12 +147,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Convertir les données
-    const reservations = reservationsResult.map((reservation) => ({
+    let reservations = reservationsResult.map((reservation) => ({
       ...reservation,
       totalPrice: reservation.totalPrice
         ? Number(reservation.totalPrice)
         : null,
     }));
+
+    // Appliquer les filtres de date si fournis
+    if (startDate || endDate) {
+      reservations = reservations.filter((reservation) => {
+        const resStartDate = new Date(reservation.startDate);
+        const resEndDate = new Date(reservation.endDate);
+
+        if (startDate && resEndDate < new Date(startDate)) {
+          return false;
+        }
+        if (endDate && resStartDate > new Date(endDate)) {
+          return false;
+        }
+        return true;
+      });
+    }
 
     // Récupérer la devise via SQL brut
     const userPreferencesResult = await prisma.$queryRaw<

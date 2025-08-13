@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar, Plus, RefreshCw, MapPin, AlertCircle } from "lucide-react";
+import { ReservationModal } from "@/components/reservations/ReservationModal";
+import { type Currency } from "@/lib/currency";
 
 interface CalendarEvent {
   id: string;
@@ -53,18 +55,84 @@ interface Reservation {
 }
 
 interface CalendarViewProps {
-  onAddEvent: (date: Date) => void;
   propertyId?: string;
 }
 
-export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
+export function CalendarView({ propertyId }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [view, setView] = useState<"day" | "month">("day"); // Default to day view
   const [hasGoogleCalendarIntegration, setHasGoogleCalendarIntegration] =
     useState<boolean | null>(null);
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [reservationRooms, setReservationRooms] = useState<Room[]>([]);
+  const [currency, setCurrency] = useState<Currency>("XOF");
+
+  // Fetch rooms for reservation modal
+  useEffect(() => {
+    const fetchReservationData = async () => {
+      try {
+        const response = await fetch("/api/reservations");
+        if (response.ok) {
+          const data = await response.json();
+          // Extract rooms from the response and set currency
+          if (data.currency) {
+            setCurrency(data.currency);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching reservation data:", error);
+      }
+    };
+
+    fetchReservationData();
+  }, []);
+
+  // Transform rooms for reservation modal
+  const transformedRooms = rooms.map((room) => ({
+    id: room.id,
+    name: room.name,
+    propertyName: room.propertyName,
+    pricePerNight: room.pricePerNight || 0,
+    type: "space" as const, // Default type
+  }));
+
+  // Handle adding a new reservation
+  const handleAddReservation = (date: Date) => {
+    setSelectedDate(date);
+    setIsReservationModalOpen(true);
+  };
+
+  // Create a reservation object for the modal with pre-filled date
+  const createNewReservation = () => {
+    if (!selectedDate) return undefined;
+
+    return {
+      id: "",
+      roomId: "",
+      guestName: "",
+      guestEmail: "",
+      startDate: selectedDate.toISOString().split("T")[0], // Format as YYYY-MM-DD
+      endDate: selectedDate.toISOString().split("T")[0],
+      status: "PENDING",
+      totalPrice: 0,
+      notes: "",
+    };
+  };
+
+  const handleCloseReservationModal = () => {
+    setIsReservationModalOpen(false);
+    setSelectedDate(null);
+  };
+
+  const handleSaveReservation = () => {
+    fetchEvents(); // Re-fetch events to include the new reservation
+    handleCloseReservationModal();
+  };
 
   // Récupérer les espaces
   useEffect(() => {
@@ -281,12 +349,40 @@ export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
 
   const getEventsForDate = (date: Date) => {
     const filteredEvents = events.filter((event) => {
-      const eventDate = new Date(event.startDate);
-      const match = eventDate.toDateString() === date.toDateString();
-      return match;
+      const eventStartDate = new Date(event.startDate);
+      const eventEndDate = new Date(event.endDate);
+      const targetDate = new Date(date);
+
+      // Reset time to compare only dates
+      eventStartDate.setHours(0, 0, 0, 0);
+      eventEndDate.setHours(23, 59, 59, 999);
+      targetDate.setHours(0, 0, 0, 0);
+
+      // Check if the target date falls within the event's date range
+      return targetDate >= eventStartDate && targetDate <= eventEndDate;
     });
 
     return filteredEvents;
+  };
+
+  const getEventsForDayView = (date: Date) => {
+    return events.filter((event) => {
+      const eventStartDate = new Date(event.startDate);
+      const eventEndDate = new Date(event.endDate);
+      const targetDate = new Date(date);
+
+      // For day view, we want events that occur on this specific day
+      const isSameDay = (date1: Date, date2: Date) => {
+        return date1.toDateString() === date2.toDateString();
+      };
+
+      // Include events that start, end, or span through this day
+      return (
+        isSameDay(eventStartDate, targetDate) ||
+        isSameDay(eventEndDate, targetDate) ||
+        (eventStartDate < targetDate && eventEndDate > targetDate)
+      );
+    });
   };
 
   const formatTime = (dateString: string) => {
@@ -365,6 +461,26 @@ export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
               Calendrier
             </CardTitle>
             <div className="flex items-center gap-4">
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={view === "day" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("day")}
+                  className="h-8"
+                >
+                  Jour
+                </Button>
+                <Button
+                  variant={view === "month" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("month")}
+                  className="h-8"
+                >
+                  Mois
+                </Button>
+              </div>
+
               {/* Sélecteur d'espace */}
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-500" />
@@ -387,17 +503,48 @@ export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigateMonth("prev")}
+                  onClick={() => setCurrentDate(new Date())}
+                  className="text-sm"
+                >
+                  Aujourd&apos;hui
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (view === "day") {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(currentDate.getDate() - 1);
+                      setCurrentDate(newDate);
+                    } else {
+                      navigateMonth("prev");
+                    }
+                  }}
                 >
                   ←
                 </Button>
-                <span className="text-lg font-semibold capitalize">
-                  {monthName}
+                <span className="text-lg font-semibold capitalize min-w-48 text-center">
+                  {view === "day"
+                    ? currentDate.toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : monthName}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigateMonth("next")}
+                  onClick={() => {
+                    if (view === "day") {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(currentDate.getDate() + 1);
+                      setCurrentDate(newDate);
+                    } else {
+                      navigateMonth("next");
+                    }
+                  }}
                 >
                   →
                 </Button>
@@ -417,85 +564,213 @@ export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
         </CardHeader>
       </Card>
 
-      {/* Grille du calendrier */}
+      {/* Calendrier */}
       <Card>
         <CardContent className="p-0">
-          <div className="grid grid-cols-7 gap-px bg-gray-200">
-            {/* En-têtes des jours */}
-            {["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"].map((day) => (
-              <div
-                key={day}
-                className="bg-white p-3 text-center font-medium text-gray-500"
-              >
-                {day}
-              </div>
-            ))}
-
-            {/* Jours du calendrier */}
-            {days.map(({ date, isCurrentMonth }, index) => {
-              const dayEvents = getEventsForDate(date);
-              const isToday = date.toDateString() === new Date().toDateString();
-
-              return (
+          {view === "month" ? (
+            // Vue mois
+            <div className="grid grid-cols-7 gap-px bg-gray-200">
+              {/* En-têtes des jours */}
+              {["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"].map((day) => (
                 <div
-                  key={index}
-                  className={`min-h-[120px] bg-white p-2 ${
-                    !isCurrentMonth ? "text-gray-400" : ""
-                  }`}
+                  key={day}
+                  className="bg-white p-3 text-center font-medium text-gray-500"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        isToday
-                          ? "bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                          : ""
-                      }`}
-                    >
-                      {date.getDate()}
-                    </span>
-                    {isCurrentMonth && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onAddEvent(date)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
+                  {day}
+                </div>
+              ))}
 
-                  {/* Événements du jour */}
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map((event) => (
+              {/* Jours du calendrier */}
+              {days.map(({ date, isCurrentMonth }, index) => {
+                const dayEvents = getEventsForDate(date);
+                const isToday =
+                  date.toDateString() === new Date().toDateString();
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[120px] bg-white p-2 ${
+                      !isCurrentMonth ? "text-gray-400" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-sm font-medium ${
+                          isToday
+                            ? "bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                            : ""
+                        }`}
+                      >
+                        {date.getDate()}
+                      </span>
+                      {isCurrentMonth && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleAddReservation(date)}
+                          title="Ajouter une réservation"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Événements du jour */}
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <div
+                          key={event.id}
+                          className={`text-xs p-1 rounded border ${getEventColor(
+                            event.eventType,
+                            event.source
+                          )}`}
+                          title={`${event.title} - ${formatTime(
+                            event.startDate
+                          )}`}
+                        >
+                          <div className="font-medium truncate">
+                            {event.title}
+                          </div>
+                          <div className="text-xs opacity-75">
+                            {formatTime(event.startDate)}
+                          </div>
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{dayEvents.length - 2} autres
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            // Vue jour
+            <div className="bg-white">
+              {/* En-tête du jour */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {currentDate.toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {getEventsForDayView(currentDate).length} événement(s)
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAddReservation(currentDate)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter une réservation
+                  </Button>
+                </div>
+              </div>
+
+              {/* Grille horaire */}
+              <div className="grid grid-cols-[100px_1fr] max-h-[600px] overflow-y-auto">
+                {/* Heures */}
+                <div className="border-r border-gray-200">
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <div
+                      key={hour}
+                      className="h-16 border-b border-gray-100 p-2 text-sm text-gray-500 flex items-start"
+                    >
+                      {hour.toString().padStart(2, "0")}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Événements */}
+                <div className="relative">
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <div
+                      key={hour}
+                      className="h-16 border-b border-gray-100 relative"
+                    />
+                  ))}
+
+                  {/* Événements positionnés */}
+                  {getEventsForDayView(currentDate).map((event) => {
+                    const startTime = new Date(event.startDate);
+                    const endTime = new Date(event.endDate);
+
+                    // Calculer la position et la hauteur
+                    const startHour = startTime.getHours();
+                    const startMinute = startTime.getMinutes();
+                    const endHour = endTime.getHours();
+                    const endMinute = endTime.getMinutes();
+
+                    const top = (startHour + startMinute / 60) * 64; // 64px par heure
+                    const height = Math.max(
+                      (endHour +
+                        endMinute / 60 -
+                        (startHour + startMinute / 60)) *
+                        64,
+                      32 // Hauteur minimum
+                    );
+
+                    return (
                       <div
                         key={event.id}
-                        className={`text-xs p-1 rounded border ${getEventColor(
+                        className={`absolute left-2 right-2 rounded p-2 text-sm border ${getEventColor(
                           event.eventType,
                           event.source
-                        )}`}
-                        title={`${event.title} - ${formatTime(
-                          event.startDate
-                        )}`}
+                        )} shadow-sm cursor-pointer hover:shadow-md transition-shadow`}
+                        style={{
+                          top: `${top}px`,
+                          height: `${height}px`,
+                        }}
+                        title={event.description}
                       >
                         <div className="font-medium truncate">
                           {event.title}
                         </div>
                         <div className="text-xs opacity-75">
-                          {formatTime(event.startDate)}
+                          {formatTime(event.startDate)} -{" "}
+                          {formatTime(event.endDate)}
                         </div>
+                        {event.location && (
+                          <div className="text-xs opacity-75 truncate">
+                            📍 {event.location}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{dayEvents.length - 2} autres
-                      </Badge>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              {/* Message si aucun événement */}
+              {getEventsForDayView(currentDate).length === 0 && (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Aucun événement
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Aucun événement prévu pour cette journée
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAddReservation(currentDate)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter une réservation
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -526,6 +801,18 @@ export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modale de réservation */}
+      {isReservationModalOpen && (
+        <ReservationModal
+          isOpen={isReservationModalOpen}
+          onClose={handleCloseReservationModal}
+          onSave={handleSaveReservation}
+          rooms={transformedRooms}
+          currency={currency}
+          reservation={createNewReservation()}
+        />
+      )}
     </div>
   );
 }

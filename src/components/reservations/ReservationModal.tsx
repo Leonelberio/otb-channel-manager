@@ -138,7 +138,7 @@ const SPACE_DURATION_OPTIONS = [
 // Keep the old one for backward compatibility, but it's now deprecated
 const DURATION_OPTIONS = SPACE_DURATION_OPTIONS;
 
-type BookingStep = "space" | "calendar" | "time" | "details" | "confirmation";
+type BookingStep = "calendar" | "time" | "details" | "confirmation";
 
 export function ReservationModal({
   isOpen,
@@ -148,7 +148,7 @@ export function ReservationModal({
   rooms,
   currency,
 }: ReservationModalProps) {
-  const [currentStep, setCurrentStep] = useState<BookingStep>("space");
+  const [currentStep, setCurrentStep] = useState<BookingStep>("calendar");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -173,8 +173,11 @@ export function ReservationModal({
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep("space");
-      setSelectedRoom("");
+      setCurrentStep("calendar");
+      // Auto-select the first room if available
+      if (rooms.length > 0) {
+        setSelectedRoom(rooms[0].id);
+      }
       setSelectedDate(null);
       setSelectedTime("");
       setSelectedDuration(1);
@@ -331,8 +334,8 @@ export function ReservationModal({
   };
 
   const handleNext = () => {
-    if (currentStep === "space" && selectedRoom) {
-      setCurrentStep("calendar");
+    if (currentStep === "calendar" && selectedDate) {
+      setCurrentStep("time");
     } else if (currentStep === "time" && selectedTime) {
       setCurrentStep("details");
     } else if (currentStep === "details") {
@@ -341,9 +344,7 @@ export function ReservationModal({
   };
 
   const handleBack = () => {
-    if (currentStep === "calendar") {
-      setCurrentStep("space");
-    } else if (currentStep === "time") {
+    if (currentStep === "time") {
       setCurrentStep("calendar");
     } else if (currentStep === "details") {
       setCurrentStep("time");
@@ -429,7 +430,6 @@ export function ReservationModal({
           {/* Step Indicator */}
           <div className="flex items-center justify-center space-x-8 pt-4">
             {[
-              { key: "space", label: "Espace", icon: User },
               { key: "calendar", label: "Date", icon: Calendar },
               { key: "time", label: "Horaire", icon: Clock },
               { key: "details", label: "Détails", icon: FileText },
@@ -438,7 +438,6 @@ export function ReservationModal({
               const Icon = step.icon;
               const isActive = currentStep === step.key;
               const isCompleted =
-                (step.key === "space" && currentStep !== "space") ||
                 (step.key === "calendar" &&
                   ["time", "details", "confirmation"].includes(currentStep)) ||
                 (step.key === "time" &&
@@ -488,120 +487,124 @@ export function ReservationModal({
         <div className="flex gap-8 h-[600px]">
           {/* Left Side - Calendar */}
           <div className="w-80 flex-shrink-0">
-            {currentStep === "space" && (
+            {currentStep === "calendar" && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Choisissez un espace
-                </h3>
-                <Select value={selectedRoom} onValueChange={handleRoomSelect}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sélectionner un espace" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rooms.map((room) => (
-                      <SelectItem key={room.id} value={room.id}>
-                        {room.propertyName} - {room.name} (
-                        {formatCurrency(room.pricePerNight, currency)}/nuit)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {currentStep === "calendar" && selectedRoom && (
-              <div className="space-y-4">
-                {/* Month Navigation */}
-                <div className="flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateMonth("prev")}
-                    className="p-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {format(currentMonth, "MMMM yyyy", { locale: fr })}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateMonth("next")}
-                    className="p-2"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                {/* Space Selector */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Espace *
+                  </Label>
+                  <Select value={selectedRoom} onValueChange={handleRoomSelect}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Sélectionner un espace" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rooms.map((room) => (
+                        <SelectItem key={room.id} value={room.id}>
+                          {room.propertyName} - {room.name} (
+                          {formatCurrency(room.pricePerNight, currency)}/nuit)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Days of Week */}
-                <div className="grid grid-cols-7 gap-1 text-center">
-                  {["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"].map(
-                    (day) => (
-                      <div
-                        key={day}
-                        className="text-sm font-medium text-gray-500 py-2"
+                {/* Calendar only shows when room is selected */}
+                {selectedRoom && (
+                  <>
+                    {/* Month Navigation */}
+                    <div className="flex items-center justify-between">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigateMonth("prev")}
+                        className="p-2"
                       >
-                        {day}
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {format(currentMonth, "MMMM yyyy", { locale: fr })}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigateMonth("next")}
+                        className="p-2"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Days of Week */}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"].map(
+                        (day) => (
+                          <div
+                            key={day}
+                            className="text-sm font-medium text-gray-500 py-2"
+                          >
+                            {day}
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {getCalendarDays().map((date, index) => {
+                        const isCurrentMonth = isSameMonth(date, currentMonth);
+                        const isAvailable = isDateAvailable(date);
+                        const isSelected =
+                          selectedDate && isSameDay(date, selectedDate);
+                        const isTodayDate = isToday(date);
+
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => handleDateSelect(date)}
+                            disabled={!isAvailable}
+                            className={`
+                              h-10 w-10 rounded-full text-sm font-medium transition-all
+                              ${!isCurrentMonth ? "text-gray-300" : ""}
+                              ${
+                                !isAvailable
+                                  ? "text-gray-300 cursor-not-allowed"
+                                  : ""
+                              }
+                              ${
+                                isAvailable && !isSelected
+                                  ? "hover:bg-blue-50 text-gray-700"
+                                  : ""
+                              }
+                              ${isSelected ? "bg-blue-600 text-white" : ""}
+                              ${
+                                isAvailable && !isSelected
+                                  ? "ring-2 ring-blue-200"
+                                  : ""
+                              }
+                              ${isTodayDate ? "ring-2 ring-blue-400" : ""}
+                            `}
+                          >
+                            {format(date, "d")}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Timezone */}
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <Globe className="h-4 w-4" />
+                        <span>Fuseau horaire: Europe/Paris</span>
                       </div>
-                    )
-                  )}
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1">
-                  {getCalendarDays().map((date, index) => {
-                    const isCurrentMonth = isSameMonth(date, currentMonth);
-                    const isAvailable = isDateAvailable(date);
-                    const isSelected =
-                      selectedDate && isSameDay(date, selectedDate);
-                    const isTodayDate = isToday(date);
-
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleDateSelect(date)}
-                        disabled={!isAvailable}
-                        className={`
-                          h-10 w-10 rounded-full text-sm font-medium transition-all
-                          ${!isCurrentMonth ? "text-gray-300" : ""}
-                          ${
-                            !isAvailable
-                              ? "text-gray-300 cursor-not-allowed"
-                              : ""
-                          }
-                          ${
-                            isAvailable && !isSelected
-                              ? "hover:bg-blue-50 text-gray-700"
-                              : ""
-                          }
-                          ${isSelected ? "bg-blue-600 text-white" : ""}
-                          ${
-                            isAvailable && !isSelected
-                              ? "ring-2 ring-blue-200"
-                              : ""
-                          }
-                          ${isTodayDate ? "ring-2 ring-blue-400" : ""}
-                        `}
-                      >
-                        {format(date, "d")}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Timezone */}
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Globe className="h-4 w-4" />
-                    <span>Fuseau horaire: Europe/Paris</span>
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {/* Back Button for other steps */}
-            {currentStep !== "space" && (
+            {currentStep !== "calendar" && (
               <Button
                 variant="ghost"
                 onClick={handleBack}
@@ -936,31 +939,6 @@ export function ReservationModal({
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <Label
-                      htmlFor="room"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Espace *
-                    </Label>
-                    <Select
-                      value={selectedRoom}
-                      onValueChange={handleRoomSelect}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Sélectionner un espace" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {rooms.map((room) => (
-                          <SelectItem key={room.id} value={room.id}>
-                            {room.propertyName} - {room.name} (
-                            {formatCurrency(room.pricePerNight, currency)}/nuit)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label
