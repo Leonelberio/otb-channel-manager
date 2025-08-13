@@ -125,7 +125,7 @@ export async function PUT(
         id: { not: id }, // Exclure la réservation actuelle
         roomId,
         status: {
-          not: "CANCELLED",
+          notIn: ["CANCELLED", "REFUNDED"],
         },
         OR: [
           {

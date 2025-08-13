@@ -2,15 +2,43 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Building2, MapPin, Calendar, Users, Coins } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Building2,
+  MapPin,
+  Calendar,
+  Users,
+  Coins,
+  Clock,
+  CreditCard,
+  CheckCircle,
+  Settings,
+  BookOpen,
+} from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { formatCurrency, type Currency } from "@/lib/currency";
 import { RoomModal } from "@/components/rooms/RoomModal";
 import Link from "next/link";
+import {
+  isToday,
+  isThisWeek,
+  isThisMonth,
+  isThisYear,
+  parseISO,
+  startOfDay,
+  endOfDay,
+  subDays,
+  subWeeks,
+  subMonths,
+  subYears,
+} from "date-fns";
 
 interface Reservation {
   id: string;
+  status: string;
   totalPrice: number | null;
+  createdAt: string | Date;
 }
 
 interface Equipment {
@@ -53,6 +81,7 @@ export function PropertyOverviewClient({
   allProperties,
 }: PropertyOverviewClientProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
   // Get property currency (default to XOF if no settings)
   const propertyCurrency = property.propertySettings?.currency || "XOF";
@@ -60,25 +89,102 @@ export function PropertyOverviewClient({
   const unitTerminology =
     property.establishmentType === "hotel" ? "Chambres" : "Espaces";
   const totalRooms = property.rooms.length;
-  const totalReservations = property.rooms.reduce(
-    (acc, room) => acc + room.reservations.length,
-    0
-  );
+
+  // Calculate reservations by status
+  const allReservations = property.rooms.flatMap((room) => room.reservations);
+
+  // Filter reservations by selected period
+  const filterReservationsByPeriod = (reservations: typeof allReservations) => {
+    if (selectedPeriod === "all") return reservations;
+
+    const now = new Date();
+
+    return reservations.filter((reservation) => {
+      // Handle both string and Date types for createdAt
+      let createdDate: Date;
+
+      try {
+        if (reservation.createdAt instanceof Date) {
+          createdDate = reservation.createdAt;
+        } else if (typeof reservation.createdAt === "string") {
+          createdDate = parseISO(reservation.createdAt);
+        } else {
+          // Fallback to current date if createdAt is invalid
+          createdDate = new Date();
+        }
+      } catch (error) {
+        // If parsing fails, use current date as fallback
+        createdDate = new Date();
+      }
+
+      switch (selectedPeriod) {
+        case "today":
+          return isToday(createdDate);
+        case "week":
+          return isThisWeek(createdDate, { weekStartsOn: 1 });
+        case "month":
+          return isThisMonth(createdDate);
+        case "year":
+          return isThisYear(createdDate);
+        case "last7days":
+          return createdDate >= subDays(now, 7);
+        case "last30days":
+          return createdDate >= subDays(now, 30);
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredReservations = filterReservationsByPeriod(allReservations);
+
+  // Get period name for display
+  const getPeriodName = (period: string) => {
+    switch (period) {
+      case "all":
+        return "toutes les périodes";
+      case "today":
+        return "aujourd'hui";
+      case "week":
+        return "cette semaine";
+      case "month":
+        return "ce mois";
+      case "year":
+        return "cette année";
+      case "last7days":
+        return "les 7 derniers jours";
+      case "last30days":
+        return "les 30 derniers jours";
+      default:
+        return "la période sélectionnée";
+    }
+  };
+
+  // Revenus à payer (TO_PAY status)
+  const revenuesToPay = filteredReservations
+    .filter((reservation) => reservation.status === "TO_PAY")
+    .reduce(
+      (acc, reservation) =>
+        acc + (reservation.totalPrice ? Number(reservation.totalPrice) : 0),
+      0
+    );
+
+  // Nombre de réservations en attente (PENDING status)
+  const pendingReservationsCount = filteredReservations.filter(
+    (reservation) => reservation.status === "PENDING"
+  ).length;
+
+  // Revenus payés (PAID status)
+  const paidRevenues = filteredReservations
+    .filter((reservation) => reservation.status === "PAID")
+    .reduce(
+      (acc, reservation) =>
+        acc + (reservation.totalPrice ? Number(reservation.totalPrice) : 0),
+      0
+    );
+
   const totalEquipments = property.rooms.reduce(
     (acc, room) => acc + room.equipments.length,
-    0
-  );
-
-  // Calculate revenue for this property
-  const totalRevenue = property.rooms.reduce(
-    (acc, room) =>
-      acc +
-      room.reservations.reduce(
-        (resAcc: number, reservation: Reservation) =>
-          resAcc +
-          (reservation.totalPrice ? Number(reservation.totalPrice) : 0),
-        0
-      ),
     0
   );
 
@@ -125,6 +231,28 @@ export function PropertyOverviewClient({
         </div>
       </div>
 
+      {/* Period Filter */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Statistiques par période
+        </h3>
+        <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod}>
+          <TabsList className="grid w-full max-w-3xl grid-cols-6">
+            <TabsTrigger value="all">Tout</TabsTrigger>
+            <TabsTrigger value="today">Aujourd&apos;hui</TabsTrigger>
+            <TabsTrigger value="week">Cette semaine</TabsTrigger>
+            <TabsTrigger value="month">Ce mois</TabsTrigger>
+            <TabsTrigger value="last7days">7 derniers jours</TabsTrigger>
+            <TabsTrigger value="last30days">30 derniers jours</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="mt-3 text-sm text-gray-600">
+          <span className="font-medium">{filteredReservations.length}</span>{" "}
+          réservation{filteredReservations.length > 1 ? "s" : ""} pour{" "}
+          <span className="font-medium">{getPeriodName(selectedPeriod)}</span>
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
@@ -134,22 +262,23 @@ export function PropertyOverviewClient({
           isMonetary={false}
         />
         <StatsCard
-          title="Réservations actives"
-          value={totalReservations}
-          icon={<Calendar className="h-5 w-5" />}
+          title="Réservations en attente"
+          value={pendingReservationsCount}
+          icon={<Clock className="h-5 w-5" />}
           isMonetary={false}
         />
         <StatsCard
-          title="Équipements"
-          value={totalEquipments}
-          icon={<Users className="h-5 w-5" />}
-          isMonetary={false}
-        />
-        <StatsCard
-          title="Revenus"
-          value={totalRevenue}
+          title="Revenus à payer"
+          value={revenuesToPay}
           currency={propertyCurrency as Currency}
-          icon={<Coins className="h-5 w-5" />}
+          icon={<CreditCard className="h-5 w-5" />}
+          isMonetary={true}
+        />
+        <StatsCard
+          title="Revenus payés"
+          value={paidRevenues}
+          currency={propertyCurrency as Currency}
+          icon={<CheckCircle className="h-5 w-5" />}
           isMonetary={true}
         />
       </div>
@@ -229,22 +358,26 @@ export function PropertyOverviewClient({
           <div className="space-y-4">
             <Link href={`/dashboard/properties/${property.id}/rooms`}>
               <Button variant="outline" className="w-full justify-start">
-                🛏️ Gérer les {unitTerminology.toLowerCase()}
+                <Building2 className="h-4 w-4 mr-2" />
+                Gérer les {unitTerminology.toLowerCase()}
               </Button>
             </Link>
             <Link href={`/dashboard/properties/${property.id}/equipments`}>
               <Button variant="outline" className="w-full justify-start">
-                🛠️ Gérer les équipements
+                <Settings className="h-4 w-4 mr-2" />
+                Gérer les équipements
               </Button>
             </Link>
             <Link href={`/dashboard/properties/${property.id}/calendar`}>
               <Button variant="outline" className="w-full justify-start">
-                📅 Voir le planning
+                <Calendar className="h-4 w-4 mr-2" />
+                Voir le planning
               </Button>
             </Link>
             <Link href={`/dashboard/properties/${property.id}/reservations`}>
               <Button variant="outline" className="w-full justify-start">
-                📋 Gérer les réservations
+                <BookOpen className="h-4 w-4 mr-2" />
+                Gérer les réservations
               </Button>
             </Link>
           </div>

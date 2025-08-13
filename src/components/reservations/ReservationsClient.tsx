@@ -18,6 +18,7 @@ import {
   Edit,
   Trash2,
   Eye,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -40,6 +41,8 @@ interface Reservation {
   guestEmail?: string;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  duration?: number;
   status: string;
   totalPrice?: number;
   notes?: string;
@@ -61,12 +64,25 @@ const RESERVATION_STATUSES = [
     color: "bg-yellow-100 text-yellow-800",
   },
   {
-    value: "CONFIRMED",
-    label: "Confirmée",
+    value: "TO_PAY",
+    label: "A payer",
+    color: "bg-orange-100 text-orange-800",
+  },
+  {
+    value: "PAID",
+    label: "Payé",
     color: "bg-green-100 text-green-800",
   },
-  { value: "CANCELLED", label: "Annulée", color: "bg-red-100 text-red-800" },
-  { value: "COMPLETED", label: "Terminée", color: "bg-blue-100 text-blue-800" },
+  {
+    value: "CANCELLED",
+    label: "Annulé",
+    color: "bg-red-100 text-red-800",
+  },
+  {
+    value: "REFUNDED",
+    label: "Remboursé",
+    color: "bg-blue-100 text-blue-800",
+  },
 ];
 
 export function ReservationsClient({
@@ -222,6 +238,18 @@ export function ReservationsClient({
                             { locale: fr }
                           )}
                         </div>
+                        {reservation.startTime && (
+                          <div className="flex items-center text-sm text-airbnb-dark-gray mt-1">
+                            <Clock className="h-4 w-4 mr-1" />
+                            {reservation.startTime}
+                            {reservation.duration && (
+                              <span className="ml-2">
+                                • Durée: {reservation.duration} heure
+                                {reservation.duration > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="text-sm text-airbnb-dark-gray mt-1">
                           {reservation.propertyName} • {reservation.roomName}
                         </div>

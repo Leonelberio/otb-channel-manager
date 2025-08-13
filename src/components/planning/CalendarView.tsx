@@ -49,6 +49,8 @@ interface Reservation {
   guestEmail?: string;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  duration?: number;
   notes?: string;
   roomName: string;
   propertyName: string;
@@ -258,27 +260,50 @@ export function CalendarView({ propertyId }: CalendarViewProps) {
 
           // Transformer les réservations en événements de calendrier
           reservationEvents = (reservationData.reservations || []).map(
-            (reservation: Reservation) => ({
-              id: `reservation-${reservation.id}`,
-              title: `${reservation.guestName}`,
-              description: `Réservation - ${reservation.roomName}${
-                reservation.notes ? ` (${reservation.notes})` : ""
-              }`,
-              startDate: reservation.startDate,
-              endDate: reservation.endDate,
-              eventType: "reservation",
-              source: "internal",
-              location: `${reservation.propertyName} - ${reservation.roomName}`,
-              attendees: reservation.guestEmail
-                ? [
-                    {
-                      email: reservation.guestEmail,
-                      name: reservation.guestName,
-                      responseStatus: "accepted",
-                    },
-                  ]
-                : [],
-            })
+            (reservation: Reservation) => {
+              // Combine date and time for proper display
+              let eventStartDate = reservation.startDate;
+              let eventEndDate = reservation.endDate;
+
+              // If we have startTime, create proper datetime
+              if (reservation.startTime) {
+                const startDate = new Date(reservation.startDate);
+                const [hours, minutes] = reservation.startTime
+                  .split(":")
+                  .map(Number);
+                startDate.setHours(hours, minutes, 0, 0);
+                eventStartDate = startDate.toISOString();
+
+                // Calculate end time using duration
+                if (reservation.duration) {
+                  const endDate = new Date(startDate);
+                  endDate.setHours(startDate.getHours() + reservation.duration);
+                  eventEndDate = endDate.toISOString();
+                }
+              }
+
+              return {
+                id: `reservation-${reservation.id}`,
+                title: `${reservation.guestName}`,
+                description: `Réservation - ${reservation.roomName}${
+                  reservation.notes ? ` (${reservation.notes})` : ""
+                }`,
+                startDate: eventStartDate,
+                endDate: eventEndDate,
+                eventType: "reservation",
+                source: "internal",
+                location: `${reservation.propertyName} - ${reservation.roomName}`,
+                attendees: reservation.guestEmail
+                  ? [
+                      {
+                        email: reservation.guestEmail,
+                        name: reservation.guestName,
+                        responseStatus: "accepted",
+                      },
+                    ]
+                  : [],
+              };
+            }
           );
         } else {
           console.error(

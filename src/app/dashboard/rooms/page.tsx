@@ -65,7 +65,7 @@ export default async function RoomsPage() {
     LEFT JOIN (
       SELECT room_id, COUNT(*) as reservation_count
       FROM reservations
-      WHERE status IN ('CONFIRMED', 'PENDING')
+      WHERE status IN ('PENDING', 'TO_PAY', 'PAID')
       GROUP BY room_id
     ) res ON r.id = res.room_id
     WHERE p.organisation_id = ${userOrganisation.organisationId}

@@ -28,11 +28,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       propertySettings: true,
       rooms: {
         include: {
-          reservations: {
-            where: {
-              status: "CONFIRMED",
-            },
-          },
+          reservations: true, // Get all reservations to calculate statistics by status
           equipments: true,
         },
       },

@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
       where: {
         roomId,
         status: {
-          not: "CANCELLED",
+          notIn: ["CANCELLED", "REFUNDED"],
         },
         OR: [
           {
@@ -305,7 +305,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Valider le statut
-    const validStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
+    const validStatuses = [
+      "PENDING",
+      "TO_PAY",
+      "PAID",
+      "CANCELLED",
+      "REFUNDED",
+    ];
     const finalStatus =
       status && validStatuses.includes(status) ? status : "PENDING";
 
@@ -322,11 +328,7 @@ export async function POST(request: NextRequest) {
         endDate: end,
         startTime: startTime || null,
         duration: duration ? parseInt(duration) : null,
-        status: finalStatus as
-          | "PENDING"
-          | "CONFIRMED"
-          | "CANCELLED"
-          | "COMPLETED",
+        status: finalStatus,
         totalPrice: totalPrice ? parseFloat(totalPrice) : null,
         notes: notes || null,
       },

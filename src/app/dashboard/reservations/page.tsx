@@ -41,6 +41,8 @@ export default async function ReservationsPage() {
           guestEmail: reservation.guestEmail || undefined,
           startDate: reservation.startDate.toISOString(),
           endDate: reservation.endDate.toISOString(),
+          startTime: reservation.startTime || undefined,
+          duration: reservation.duration || undefined,
           status: reservation.status,
           totalPrice: reservation.totalPrice
             ? Number(reservation.totalPrice)

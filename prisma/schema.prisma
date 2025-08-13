@@ -195,9 +195,10 @@ model Reservation {
 
 enum ReservationStatus {
   PENDING
-  CONFIRMED
+  TO_PAY
+  PAID
   CANCELLED
-  COMPLETED
+  REFUNDED
 }
 
 // ============ NEXTAUTH MODELS ============
