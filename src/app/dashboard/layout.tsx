@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Sidebar } from "@/components/dashboard/Sidebar";
-import { headers } from "next/headers";
 
 export default async function DashboardLayout({
   children,
@@ -15,10 +14,6 @@ export default async function DashboardLayout({
   if (!session) {
     redirect("/auth/signin");
   }
-
-  // Check if we're on the properties listing page
-  const headersList = await headers();
-  const isPropertiesPage = headersList.get("x-is-properties-page") === "true";
 
   // Vérifier si l'utilisateur a des préférences
   let userPreferences = await prisma.userPreferences.findUnique({
@@ -44,15 +39,6 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  // If this is the properties listing page, don't show sidebar
-  if (isPropertiesPage) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <main className="w-full">{children}</main>
-      </div>
-    );
-  }
-
   // Récupérer les données de l'utilisateur pour la sidebar
   const userOrganisation = await prisma.userOrganisation.findFirst({
     where: { userId: session.user.id },
@@ -74,7 +60,8 @@ export default async function DashboardLayout({
     organisation?.properties.map((property) => ({
       id: property.id,
       name: property.name,
-      establishmentType: property.establishmentType,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      establishmentType: (property as any).establishmentType,
       roomCount: property.rooms.length,
     })) || [];
 

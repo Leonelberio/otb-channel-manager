@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // Set a custom header to identify the properties listing page
-  if (pathname === "/dashboard/properties") {
-    response.headers.set("x-is-properties-page", "true");
+  // Redirect /dashboard to /dashboard/properties immediately
+  if (pathname === "/dashboard") {
+    return NextResponse.redirect(new URL("/dashboard/properties", request.url));
   }
 
   // Handle auth redirects for signed-in users
@@ -16,8 +15,10 @@ export async function middleware(request: NextRequest) {
       const token = await getToken({ req: request });
 
       if (token) {
-        // User is authenticated, redirect to dashboard
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        // User is authenticated, redirect to dashboard properties
+        return NextResponse.redirect(
+          new URL("/dashboard/properties", request.url)
+        );
       }
     } catch (error) {
       // If there's an error getting the token, continue to auth page
@@ -25,7 +26,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
