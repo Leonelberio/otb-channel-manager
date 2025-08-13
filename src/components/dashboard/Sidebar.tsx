@@ -56,14 +56,12 @@ interface SidebarProps {
     establishmentType: string;
   };
   properties?: Property[];
-  hideInitially?: boolean;
 }
 
 export function Sidebar({
   organisation,
   userPreferences,
   properties: initialProperties = [],
-  hideInitially = false,
 }: SidebarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
@@ -164,9 +162,8 @@ export function Sidebar({
     return establishmentType === "hotel" ? "Chambres" : "Espaces";
   };
 
-  // After all hooks are declared, safely hide sidebar on properties list route or when requested by SSR
-  const hideSidebarOnPropertiesList =
-    hideInitially || pathname === "/dashboard/properties";
+  // Hide sidebar on properties listing route only (client-side check)
+  const hideSidebarOnPropertiesList = pathname === "/dashboard/properties";
   if (hideSidebarOnPropertiesList) {
     return null;
   }
