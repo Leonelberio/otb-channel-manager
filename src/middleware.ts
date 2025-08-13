@@ -9,6 +9,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard/properties", request.url));
   }
 
+  const response = NextResponse.next();
+
+  // Set header for properties page to prevent sidebar flash
+  if (pathname === "/dashboard/properties") {
+    response.headers.set("x-hide-sidebar", "true");
+  }
+
   // Handle auth redirects for signed-in users
   if (pathname.startsWith("/auth/")) {
     try {
@@ -26,7 +33,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

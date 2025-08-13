@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { headers } from "next/headers";
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +15,10 @@ export default async function DashboardLayout({
   if (!session) {
     redirect("/auth/signin");
   }
+
+  // Check if we should hide the sidebar (for properties page)
+  const headersList = await headers();
+  const hideSidebar = headersList.get("x-hide-sidebar") === "true";
 
   // Vérifier si l'utilisateur a des préférences
   let userPreferences = await prisma.userPreferences.findUnique({
@@ -37,6 +42,15 @@ export default async function DashboardLayout({
   // Rediriger vers l'onboarding seulement si l'utilisateur n'a pas complété l'onboarding
   if (!userPreferences?.onboardingCompleted) {
     redirect("/onboarding");
+  }
+
+  // If hiding sidebar, return simple layout
+  if (hideSidebar) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="w-full">{children}</main>
+      </div>
+    );
   }
 
   // Récupérer les données de l'utilisateur pour la sidebar
