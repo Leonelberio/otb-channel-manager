@@ -63,6 +63,15 @@ export function Sidebar({
   userPreferences,
   properties: initialProperties = [],
 }: SidebarProps) {
+  console.log("🔧 Sidebar initializing with:", {
+    count: initialProperties.length,
+    properties: initialProperties.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.establishmentType,
+    })),
+  });
+
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
@@ -90,7 +99,7 @@ export function Sidebar({
 
       // If property not found in current list, refetch properties immediately
       if (!foundProperty) {
-        fetchProperties(true); // Force refresh
+        fetchProperties();
       }
     }
   }, [pathname, properties]);
@@ -101,17 +110,14 @@ export function Sidebar({
       pathname.includes("/dashboard/properties/") &&
       !pathname.endsWith("/properties")
     ) {
-      // Force refresh to ensure we have the latest data, especially when coming from properties page
-      fetchProperties(true);
+      // Always refresh to ensure we have the latest data
+      fetchProperties();
     }
   }, [pathname]);
 
-  const fetchProperties = async (forceRefresh = false) => {
-    // Avoid fetching if already in progress or fetched recently (within 5 seconds) unless forced
-    const now = Date.now();
-    const cacheTime = forceRefresh ? 0 : 5000; // Reduce cache time to 5 seconds, or bypass if forced
-
-    if (isFetchingProperties || now - lastFetchTime < cacheTime) {
+  const fetchProperties = async () => {
+    // Simple protection against multiple simultaneous fetches
+    if (isFetchingProperties) {
       return;
     }
 
@@ -130,7 +136,7 @@ export function Sidebar({
           })
         );
         setProperties(transformedProperties);
-        setLastFetchTime(now);
+        setLastFetchTime(Date.now());
       }
     } catch (error) {
       console.error("Error fetching properties:", error);

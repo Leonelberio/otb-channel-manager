@@ -34,7 +34,11 @@ export default async function PropertiesPage() {
         address: property.address,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         establishmentType: (property as any).establishmentType,
-        rooms: property.rooms,
+        rooms: property.rooms.map((room) => ({
+          ...room,
+          // Convert Decimal to number
+          pricePerNight: room.pricePerNight ? Number(room.pricePerNight) : null,
+        })),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         propertySettings: (property as any).propertySettings,
       }))}
