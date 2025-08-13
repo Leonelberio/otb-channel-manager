@@ -63,18 +63,10 @@ export function Sidebar({
   userPreferences,
   properties: initialProperties = [],
 }: SidebarProps) {
-  console.log("🔧 Sidebar initializing with:", {
-    count: initialProperties.length,
-    properties: initialProperties.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: p.establishmentType,
-    })),
-  });
-
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [properties, setProperties] = useState<Property[]>(initialProperties);
   const [isFetchingProperties, setIsFetchingProperties] = useState(false);
@@ -169,6 +161,12 @@ export function Sidebar({
   const getPropertyTerminology = (establishmentType: string) => {
     return establishmentType === "hotel" ? "Chambres" : "Espaces";
   };
+
+  // After all hooks are declared, safely hide sidebar on properties list route
+  const hideSidebarOnPropertiesList = pathname === "/dashboard/properties";
+  if (hideSidebarOnPropertiesList) {
+    return null;
+  }
 
   // If we're in a property context, show property-focused navigation
   if (currentProperty) {

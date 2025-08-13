@@ -44,15 +44,6 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  // If hiding sidebar, return simple layout
-  if (hideSidebar) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <main className="w-full">{children}</main>
-      </div>
-    );
-  }
-
   // Récupérer les données de l'utilisateur pour la sidebar
   const userOrganisation = await prisma.userOrganisation.findFirst({
     where: { userId: session.user.id },
