@@ -36,6 +36,17 @@ interface Property {
   roomCount?: number;
 }
 
+interface PropertyApiResponse {
+  id: string;
+  name: string;
+  establishmentType: string;
+  roomCount: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rooms: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface SidebarProps {
   organisation?: {
     id: string;
@@ -50,12 +61,15 @@ interface SidebarProps {
 export function Sidebar({
   organisation,
   userPreferences,
-  properties = [],
+  properties: initialProperties = [],
 }: SidebarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [properties, setProperties] = useState<Property[]>(initialProperties);
+  const [isFetchingProperties, setIsFetchingProperties] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
 
   // Detect current property from pathname
   const currentProperty = useMemo(() => {
@@ -66,6 +80,62 @@ export function Sidebar({
     }
     return null;
   }, [pathname, properties]);
+
+  // Fetch properties when current property is not found in the list
+  useEffect(() => {
+    const propertyMatch = pathname.match(/\/dashboard\/properties\/([^\/]+)/);
+    if (propertyMatch && propertyMatch[1] !== "new") {
+      const propertyId = propertyMatch[1];
+      const foundProperty = properties.find((p) => p.id === propertyId);
+
+      // If property not found in current list, refetch properties
+      if (!foundProperty) {
+        fetchProperties();
+      }
+    }
+  }, [pathname, properties]);
+
+  // Also refresh properties when coming from properties listing page
+  useEffect(() => {
+    if (
+      pathname.includes("/dashboard/properties/") &&
+      !pathname.endsWith("/properties")
+    ) {
+      // Force refresh to ensure we have the latest data
+      fetchProperties();
+    }
+  }, [pathname]);
+
+  const fetchProperties = async () => {
+    // Avoid fetching if already in progress or fetched recently (within 30 seconds)
+    const now = Date.now();
+    if (isFetchingProperties || now - lastFetchTime < 30000) {
+      return;
+    }
+
+    setIsFetchingProperties(true);
+    try {
+      const response = await fetch("/api/properties");
+      if (response.ok) {
+        const { properties: data } = await response.json();
+        // Transform the data to match our Property interface
+        const transformedProperties = data.map(
+          (property: PropertyApiResponse) => ({
+            id: property.id,
+            name: property.name,
+            establishmentType: property.establishmentType,
+            roomCount: property.roomCount || 0,
+          })
+        );
+        setProperties(transformedProperties);
+        setLastFetchTime(now);
+      }
+    } catch (error) {
+      console.error("Error fetching properties:", error);
+    } finally {
+      setIsFetchingProperties(false);
+    }
+  };
 
   // Update last active property when currentProperty changes
   useEffect(() => {
