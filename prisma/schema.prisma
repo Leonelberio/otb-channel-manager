@@ -73,19 +73,22 @@ enum Role {
 // ============ PROPRIÉTÉS & ESPACES ============
 
 model Property {
-  id             String   @id @default(cuid())
-  organisationId String   @map("organisation_id")
-  name           String
-  address        String?
-  description    String?
-  mainImageUrl   String?  @map("main_image_url")
-  propertyType   String?  @map("property_type") // appartement, chambre d'hôtel, espace de réunion, etc.
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  organisationId    String   @map("organisation_id")
+  name              String
+  address           String?
+  description       String?
+  mainImageUrl      String?  @map("main_image_url")
+  propertyType      String?  @map("property_type") // appartement, chambre d'hôtel, espace de réunion, etc.
+  establishmentType String   @default("hotel") @map("establishment_type") // "hotel" or "espace"
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   // Relations
-  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  rooms        Room[]
+  organisation          Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  rooms                 Room[]
+  propertySettings      PropertySettings?
+  usersWithLastActivity UserPreferences[] @relation("UserLastActiveProperty")
 
   @@map("properties")
 }
@@ -241,21 +244,54 @@ model VerificationToken {
 // ============ CONFIGURATION UTILISATEUR ============
 
 model UserPreferences {
-  id                  String  @id @default(cuid())
-  userId              String  @unique @map("user_id")
-  establishmentType   String  @default("hotel") @map("establishment_type") // "hotel" ou "espace"
-  preferredLanguage   String  @default("fr") @map("preferred_language")
-  currency            String  @default("EUR") // "EUR", "USD", "XOF" (CFA)
-  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
-
-  // Configuration du widget
-  widgetPrimaryColor String @default("#8ABF37") @map("widget_primary_color")
-  widgetButtonColor  String @default("#8ABF37") @map("widget_button_color")
+  id                   String  @id @default(cuid())
+  userId               String  @unique @map("user_id")
+  establishmentType    String  @default("hotel") @map("establishment_type") // "hotel" ou "espace"
+  preferredLanguage    String  @default("fr") @map("preferred_language")
+  currency             String  @default("XOF") // "EUR", "USD", "XOF" (CFA)
+  onboardingCompleted  Boolean @default(false) @map("onboarding_completed")
+  lastActivePropertyId String? @map("last_active_property_id") // Track last visited property
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastActiveProperty Property? @relation("UserLastActiveProperty", fields: [lastActivePropertyId], references: [id], onDelete: SetNull)
 
   @@map("user_preferences")
+}
+
+model PropertySettings {
+  id         String @id @default(cuid())
+  propertyId String @unique @map("property_id")
+  currency   String @default("XOF") // "EUR", "USD", "XOF" (CFA)
+  timezone   String @default("Europe/Paris")
+  language   String @default("fr")
+
+  // Widget configuration (for booking widget)
+  widgetPrimaryColor String  @default("#8ABF37") @map("widget_primary_color")
+  widgetButtonColor  String  @default("#8ABF37") @map("widget_button_color")
+  widgetEnabled      Boolean @default(true) @map("widget_enabled")
+
+  // Booking settings
+  allowInstantBooking    Boolean @default(false) @map("allow_instant_booking")
+  requireApproval        Boolean @default(true) @map("require_approval")
+  maxAdvanceBookingDays  Int     @default(365) @map("max_advance_booking_days")
+  minAdvanceBookingHours Int     @default(2) @map("min_advance_booking_hours")
+
+  // Check-in/out settings
+  defaultCheckinTime  String? @map("default_checkin_time") // Format "15:00"
+  defaultCheckoutTime String? @map("default_checkout_time") // Format "11:00"
+
+  // Notification settings
+  emailNotifications Boolean @default(true) @map("email_notifications")
+  smsNotifications   Boolean @default(false) @map("sms_notifications")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_settings")
 }
 
 // ============ INTÉGRATIONS & CALENDRIER ============

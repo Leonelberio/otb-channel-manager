@@ -129,7 +129,7 @@ export function SettingsForm({
 
   const establishmentTypeOptions = [
     { value: "hotel", label: "Hôtel" },
-    { value: "espace", label: "Espace de travail" },
+    { value: "espace", label: "Espace" },
   ];
 
   const languageOptions = [

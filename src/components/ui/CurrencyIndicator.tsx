@@ -5,7 +5,7 @@ import {
   getCurrencyName,
   type Currency,
 } from "@/lib/currency";
-import { Euro } from "lucide-react";
+import { Coins } from "lucide-react";
 
 interface CurrencyIndicatorProps {
   currency: Currency;
@@ -23,7 +23,7 @@ export function CurrencyIndicator({
 
   return (
     <div className={`flex items-center space-x-1 ${className}`}>
-      <Euro className="h-4 w-4 text-gray-500" />
+      <Coins className="h-4 w-4 text-gray-500" />
       <span className="text-sm font-medium text-gray-700">
         {symbol}
         {showName && ` ${name}`}

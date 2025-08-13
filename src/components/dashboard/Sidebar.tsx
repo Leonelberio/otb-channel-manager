@@ -1,22 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Home,
   Building2,
   Calendar,
-  BookOpen,
   Settings,
   Users,
   ChevronDown,
   ChevronRight,
   LogOut,
   User,
-  Wrench,
+  Hotel,
+  Building,
+  Info,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,6 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface Property {
+  id: string;
+  name: string;
+  establishmentType: string;
+  roomCount?: number;
+}
+
 interface SidebarProps {
   organisation?: {
     id: string;
@@ -35,54 +44,286 @@ interface SidebarProps {
   userPreferences?: {
     establishmentType: string;
   };
+  properties?: Property[];
 }
 
-export function Sidebar({ organisation, userPreferences }: SidebarProps) {
+export function Sidebar({
+  organisation,
+  userPreferences,
+  properties = [],
+}: SidebarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [propertiesExpanded, setPropertiesExpanded] = useState(
-    pathname.startsWith("/dashboard/properties") ||
-      pathname.startsWith("/dashboard/rooms") ||
-      pathname.startsWith("/dashboard/equipments")
-  );
 
-  const unitTerminology =
-    userPreferences?.establishmentType === "hotel" ? "Chambres" : "Espaces";
+  // Detect current property from pathname
+  const currentProperty = useMemo(() => {
+    const propertyMatch = pathname.match(/\/dashboard\/properties\/([^\/]+)/);
+    if (propertyMatch && propertyMatch[1] !== "new") {
+      const propertyId = propertyMatch[1];
+      return properties.find((p) => p.id === propertyId) || null;
+    }
+    return null;
+  }, [pathname, properties]);
 
-  const navigation = [
+  // Update last active property when currentProperty changes
+  useEffect(() => {
+    if (currentProperty) {
+      updateLastActiveProperty(currentProperty.id);
+    }
+  }, [currentProperty]);
+
+  const updateLastActiveProperty = async (propertyId: string) => {
+    try {
+      await fetch("/api/user/last-active-property", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ propertyId }),
+      });
+    } catch (error) {
+      console.error("Error updating last active property:", error);
+    }
+  };
+
+  const handlePropertySwitch = async (propertyId: string) => {
+    await updateLastActiveProperty(propertyId);
+    router.push(`/dashboard/properties/${propertyId}`);
+  };
+
+  const getPropertyIcon = (establishmentType: string) => {
+    return establishmentType === "hotel" ? Hotel : Building;
+  };
+
+  const getPropertyTerminology = (establishmentType: string) => {
+    return establishmentType === "hotel" ? "Chambres" : "Espaces";
+  };
+
+  // If we're in a property context, show property-focused navigation
+  if (currentProperty) {
+    const PropertyIcon = getPropertyIcon(currentProperty.establishmentType);
+    const terminology = getPropertyTerminology(
+      currentProperty.establishmentType
+    );
+
+    const propertyNavigation = [
+      {
+        name: "Vue d'ensemble",
+        href: `/dashboard/properties/${currentProperty.id}`,
+        icon: Home,
+        current: pathname === `/dashboard/properties/${currentProperty.id}`,
+      },
+      {
+        name: terminology,
+        href: `/dashboard/properties/${currentProperty.id}/rooms`,
+        icon: PropertyIcon,
+        current:
+          pathname === `/dashboard/properties/${currentProperty.id}/rooms`,
+        count: currentProperty.roomCount,
+      },
+      {
+        name: "Planning",
+        href: `/dashboard/properties/${currentProperty.id}/calendar`,
+        icon: Calendar,
+        current: pathname.startsWith(
+          `/dashboard/properties/${currentProperty.id}/calendar`
+        ),
+      },
+      {
+        name: "Réservations",
+        href: `/dashboard/properties/${currentProperty.id}/reservations`,
+        icon: Users,
+        current: pathname.startsWith(
+          `/dashboard/properties/${currentProperty.id}/reservations`
+        ),
+      },
+      {
+        name: "Paramètres",
+        href: `/dashboard/properties/${currentProperty.id}/settings`,
+        icon: Settings,
+        current:
+          pathname === `/dashboard/properties/${currentProperty.id}/settings`,
+      },
+    ];
+
+    return (
+      <div
+        className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
+          isCollapsed ? "w-16" : "w-64"
+        }`}
+      >
+        {/* Property Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          {!isCollapsed && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start p-2 hover:bg-gray-50"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`p-1.5 rounded-lg ${
+                        currentProperty.establishmentType === "hotel"
+                          ? "bg-blue-100"
+                          : "bg-green-100"
+                      }`}
+                    >
+                      <PropertyIcon
+                        className={`h-5 w-5 ${
+                          currentProperty.establishmentType === "hotel"
+                            ? "text-blue-600"
+                            : "text-green-600"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <h2 className="text-sm font-semibold text-airbnb-charcoal truncate">
+                        {currentProperty.name}
+                      </h2>
+                      <p className="text-xs text-airbnb-dark-gray">
+                        {currentProperty.establishmentType === "hotel"
+                          ? "Hôtel"
+                          : "Espace"}
+                      </p>
+                    </div>
+                    <ArrowLeftRight className="h-4 w-4 text-gray-400" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Changer de propriété</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {properties.map((property) => {
+                  const Icon = getPropertyIcon(property.establishmentType);
+                  return (
+                    <DropdownMenuItem
+                      key={property.id}
+                      onClick={() => handlePropertySwitch(property.id)}
+                      className={
+                        currentProperty.id === property.id ? "bg-gray-50" : ""
+                      }
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span className="flex-1">{property.name}</span>
+                      {currentProperty.id === property.id && (
+                        <span className="text-xs text-main">✓</span>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => router.push("/dashboard/properties")}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Toutes mes propriétés
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-8 w-8 p-0"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* User Profile */}
+        {session && !isCollapsed && (
+          <div className="p-4 border-b border-gray-200">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start p-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-airbnb-charcoal truncate">
+                        {session.user?.name}
+                      </p>
+                      <p className="text-xs text-airbnb-dark-gray truncate">
+                        {session.user?.email}
+                      </p>
+                    </div>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Se déconnecter
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-1">
+            {propertyNavigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    item.current
+                      ? "bg-main text-white"
+                      : "text-airbnb-charcoal hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Icon className={`h-5 w-5 ${isCollapsed ? "" : "mr-3"}`} />
+                    {!isCollapsed && <span>{item.name}</span>}
+                  </div>
+                  {!isCollapsed && item.count !== undefined && (
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded ${
+                        item.current
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {item.count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
+  // Default navigation when no property is selected
+  const defaultNavigation = [
     {
       name: "Tableau de bord",
-      href: "/dashboard",
+      href: "/dashboard/properties",
       icon: Home,
-      current: pathname === "/dashboard",
+      current:
+        pathname === "/dashboard" || pathname === "/dashboard/properties",
     },
     {
-      name: "Propriétés",
+      name: "Mes Propriétés",
       href: "/dashboard/properties",
       icon: Building2,
-      current:
-        pathname.startsWith("/dashboard/properties") ||
-        pathname.startsWith("/dashboard/rooms") ||
-        pathname.startsWith("/dashboard/equipments"),
-      hasSubmenu: true,
-      submenu: [
-        {
-          name: "Mes propriétés",
-          href: "/dashboard/properties",
-          current: pathname === "/dashboard/properties",
-        },
-        {
-          name: unitTerminology,
-          href: "/dashboard/rooms",
-          current: pathname.startsWith("/dashboard/rooms"),
-        },
-        {
-          name: "Équipements",
-          href: "/dashboard/equipments",
-          current: pathname.startsWith("/dashboard/equipments"),
-        },
-      ],
+      current: pathname.startsWith("/dashboard/properties"),
     },
     {
       name: "Planning",
@@ -106,50 +347,66 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
 
   return (
     <div
-      className={`bg-white border-r border-gray-200 transition-all duration-300 ${
+      className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
         isCollapsed ? "w-16" : "w-64"
-      } min-h-screen flex flex-col`}
+      }`}
     >
-      {/* Logo/Brand */}
-      <div className="p-4 border-b border-gray-200">
-        <Link href="/dashboard" className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-main rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">OTB</span>
+      {/* Organization Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        {!isCollapsed && (
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-main rounded-md flex items-center justify-center">
+              <span className="text-white font-bold text-sm">OTB</span>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-airbnb-charcoal">
+                {organisation?.name || "Organisation"}
+              </h2>
+              <p className="text-xs text-airbnb-dark-gray">Channel Manager</p>
+            </div>
           </div>
-          {!isCollapsed && (
-            <span className="font-semibold text-airbnb-charcoal text-lg">
-              Channel Manager
-            </span>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="h-8 w-8 p-0"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
           )}
-        </Link>
+        </Button>
       </div>
 
-      {/* Organisation Selector */}
-      {!isCollapsed && (
+      {/* User Profile */}
+      {session && !isCollapsed && (
         <div className="p-4 border-b border-gray-200">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-4 w-4" />
-                  <span className="truncate">{organisation?.name}</span>
+              <Button variant="ghost" className="w-full justify-start p-2">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-airbnb-charcoal truncate">
+                      {session.user?.name}
+                    </p>
+                    <p className="text-xs text-airbnb-dark-gray truncate">
+                      {session.user?.email}
+                    </p>
+                  </div>
                 </div>
-                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Organisations</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Building2 className="mr-2 h-4 w-4" />
-                {organisation?.name}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/organisations">
-                  <Users className="mr-2 h-4 w-4" />
-                  Gérer les organisations
-                </Link>
+              <DropdownMenuItem onClick={() => signOut()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Se déconnecter
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -159,143 +416,25 @@ export function Sidebar({ organisation, userPreferences }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4">
         <div className="space-y-1">
-          {navigation.map((item) => {
+          {defaultNavigation.map((item) => {
             const Icon = item.icon;
-
-            if (item.hasSubmenu && !isCollapsed) {
-              return (
-                <div key={item.name}>
-                  {/* Menu principal avec submenu */}
-                  <button
-                    onClick={() => setPropertiesExpanded(!propertiesExpanded)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      item.current
-                        ? "bg-main text-white"
-                        : "text-airbnb-charcoal hover:bg-gray-100"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Icon className="h-5 w-5" />
-                      <span>{item.name}</span>
-                    </div>
-                    {propertiesExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-
-                  {/* Sous-menu */}
-                  {propertiesExpanded && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {item.submenu?.map((subItem) => (
-                        <Link
-                          key={subItem.name}
-                          href={subItem.href}
-                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            subItem.current
-                              ? "bg-main/10 text-main font-medium"
-                              : "text-airbnb-dark-gray hover:bg-gray-50 hover:text-airbnb-charcoal"
-                          }`}
-                        >
-                          {subItem.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            // Menu simple ou menu collapsed
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   item.current
                     ? "bg-main text-white"
                     : "text-airbnb-charcoal hover:bg-gray-100"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className={`h-5 w-5 ${isCollapsed ? "" : "mr-3"}`} />
                 {!isCollapsed && <span>{item.name}</span>}
               </Link>
             );
           })}
         </div>
       </nav>
-
-      {/* User Profile */}
-      <div className="p-4 border-t border-gray-200">
-        {!isCollapsed ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-main rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-airbnb-charcoal">
-                      {session?.user?.name}
-                    </p>
-                    <p className="text-xs text-airbnb-dark-gray">
-                      {session?.user?.email}
-                    </p>
-                  </div>
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                Profil
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                Préférences
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => signOut()}
-                className="text-red-600"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Se déconnecter
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => signOut()}
-            className="w-full"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Collapse Button */}
-      <div className="p-2 border-t border-gray-200">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="w-full"
-        >
-          <ChevronDown
-            className={`h-4 w-4 transform transition-transform ${
-              isCollapsed ? "rotate-90" : "-rotate-90"
-            }`}
-          />
-        </Button>
-      </div>
     </div>
   );
 }

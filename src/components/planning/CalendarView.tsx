@@ -41,11 +41,23 @@ interface Room {
   description?: string | null;
 }
 
-interface CalendarViewProps {
-  onAddEvent: (date: Date) => void;
+interface Reservation {
+  id: string;
+  guestName: string;
+  guestEmail?: string;
+  startDate: string;
+  endDate: string;
+  notes?: string;
+  roomName: string;
+  propertyName: string;
 }
 
-export function CalendarView({ onAddEvent }: CalendarViewProps) {
+interface CalendarViewProps {
+  onAddEvent: (date: Date) => void;
+  propertyId?: string;
+}
+
+export function CalendarView({ onAddEvent, propertyId }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -71,7 +83,7 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
     fetchRooms();
   }, []);
 
-  // Récupérer les événements Google Calendar
+  // Récupérer les événements Google Calendar et les réservations
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
@@ -95,40 +107,133 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
         params.append("roomId", selectedRoom);
       }
 
+      // Si propertyId est fourni, l'ajouter aux paramètres
+      if (propertyId) {
+        params.append("propertyId", propertyId);
+      }
+
       console.log("🔍 Fetching events:", {
         selectedRoom: selectedRoom || "all",
+        propertyId: propertyId || "all properties",
         url: `/api/integrations/google-calendar/events?${params.toString()}`,
       });
 
-      const response = await fetch(
-        `/api/integrations/google-calendar/events?${params.toString()}`
-      );
+      // Récupérer les événements Google Calendar
+      let googleEvents: CalendarEvent[] = [];
+      try {
+        const response = await fetch(
+          `/api/integrations/google-calendar/events?${params.toString()}`
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("📅 Events received:", {
-          totalEvents: data.events?.length || 0,
-          calendarsUsed: data.calendarsUsed || [data.calendarId],
-          totalCalendars: data.totalCalendars || 1,
-        });
-        setEvents(data.events || []);
-        // Si on récupère des événements avec succès, l'intégration fonctionne
-        setHasGoogleCalendarIntegration(true);
-      } else if (response.status === 404) {
-        // Intégration Google Calendar non configurée
-        console.log(
-          "Google Calendar non configuré - affichage sans événements externes"
-        );
-        setEvents([]);
-        setHasGoogleCalendarIntegration(false);
-      } else {
+        if (response.ok) {
+          const data = await response.json();
+          console.log("📅 Google Calendar events received:", {
+            totalEvents: data.events?.length || 0,
+            calendarsUsed: data.calendarsUsed || [data.calendarId],
+            totalCalendars: data.totalCalendars || 1,
+          });
+          googleEvents = data.events || [];
+          // Si on récupère des événements avec succès, l'intégration fonctionne
+          setHasGoogleCalendarIntegration(true);
+        } else if (response.status === 404) {
+          // Intégration Google Calendar non configurée
+          console.log(
+            "Google Calendar non configuré - affichage sans événements externes"
+          );
+          setHasGoogleCalendarIntegration(false);
+        } else {
+          console.error(
+            "Erreur lors de la récupération des événements Google Calendar:",
+            response.statusText
+          );
+          setHasGoogleCalendarIntegration(false);
+        }
+      } catch (error) {
         console.error(
-          "Erreur lors de la récupération des événements:",
-          response.statusText
+          "Erreur lors de la récupération des événements Google Calendar:",
+          error
         );
-        setEvents([]);
         setHasGoogleCalendarIntegration(false);
       }
+
+      // Récupérer les réservations depuis la base de données
+      let reservationEvents: CalendarEvent[] = [];
+      try {
+        const reservationParams = new URLSearchParams({
+          startDate: timeMin,
+          endDate: timeMax,
+        });
+
+        if (selectedRoom && selectedRoom !== "all") {
+          reservationParams.append("roomId", selectedRoom);
+        }
+
+        if (propertyId) {
+          reservationParams.append("propertyId", propertyId);
+        }
+
+        console.log("🏨 Fetching reservations:", {
+          selectedRoom: selectedRoom || "all",
+          propertyId: propertyId || "all properties",
+          url: `/api/reservations?${reservationParams.toString()}`,
+        });
+
+        const reservationResponse = await fetch(
+          `/api/reservations?${reservationParams.toString()}`
+        );
+
+        if (reservationResponse.ok) {
+          const reservationData = await reservationResponse.json();
+          console.log("📋 Reservations received:", {
+            totalReservations: reservationData.reservations?.length || 0,
+          });
+
+          // Transformer les réservations en événements de calendrier
+          reservationEvents = (reservationData.reservations || []).map(
+            (reservation: Reservation) => ({
+              id: `reservation-${reservation.id}`,
+              title: `${reservation.guestName}`,
+              description: `Réservation - ${reservation.roomName}${
+                reservation.notes ? ` (${reservation.notes})` : ""
+              }`,
+              startDate: reservation.startDate,
+              endDate: reservation.endDate,
+              eventType: "reservation",
+              source: "internal",
+              location: `${reservation.propertyName} - ${reservation.roomName}`,
+              attendees: reservation.guestEmail
+                ? [
+                    {
+                      email: reservation.guestEmail,
+                      name: reservation.guestName,
+                      responseStatus: "accepted",
+                    },
+                  ]
+                : [],
+            })
+          );
+        } else {
+          console.error(
+            "Erreur lors de la récupération des réservations:",
+            reservationResponse.statusText
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des réservations:",
+          error
+        );
+      }
+
+      // Combiner les événements Google Calendar et les réservations
+      const allEvents = [...googleEvents, ...reservationEvents];
+      console.log("📅 Total events combined:", {
+        googleEvents: googleEvents.length,
+        reservationEvents: reservationEvents.length,
+        total: allEvents.length,
+      });
+
+      setEvents(allEvents);
     } catch (error) {
       console.error("Erreur lors de la récupération des événements:", error);
       setEvents([]);
@@ -195,6 +300,9 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
   const getEventColor = (eventType: string, source: string) => {
     if (source === "google_calendar") {
       return "bg-blue-100 text-blue-800 border-blue-200";
+    }
+    if (source === "internal" && eventType === "reservation") {
+      return "bg-purple-100 text-purple-800 border-purple-200";
     }
     switch (eventType) {
       case "reservation":
@@ -398,6 +506,10 @@ export function CalendarView({ onAddEvent }: CalendarViewProps) {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div>
               <span className="text-sm">Google Calendar</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-purple-100 border border-purple-200 rounded"></div>
+              <span className="text-sm">Réservations</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>

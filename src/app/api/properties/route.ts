@@ -38,6 +38,17 @@ export async function GET(request: NextRequest) {
       (property) => ({
         ...property,
         roomCount: property.rooms.length,
+        rooms: property.rooms.map((room) => ({
+          ...room,
+          // Convert Decimal objects to regular numbers
+          pricePerNight: room.pricePerNight ? Number(room.pricePerNight) : null,
+          // Convert Date objects to ISO strings
+          createdAt: room.createdAt.toISOString(),
+          updatedAt: room.updatedAt.toISOString(),
+        })),
+        // Convert Date objects to ISO strings for property
+        createdAt: property.createdAt.toISOString(),
+        updatedAt: property.updatedAt.toISOString(),
       })
     );
 

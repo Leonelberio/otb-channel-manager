@@ -55,7 +55,13 @@ interface DatabaseIntegration {
   createdAt: string;
 }
 
-export function IntegrationsManager() {
+interface IntegrationsManagerProps {
+  propertyId?: string;
+}
+
+export function IntegrationsManager({
+  propertyId,
+}: IntegrationsManagerProps = {}) {
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
       id: "google-calendar",

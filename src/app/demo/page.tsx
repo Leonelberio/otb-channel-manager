@@ -12,18 +12,35 @@ const mockRooms = [
     name: "Salle de Réunion A",
     propertyName: "Centre d'Affaires",
     pricePerNight: 150,
+    type: "space" as const,
   },
   {
     id: "room-2",
     name: "Bureau Privé",
     propertyName: "Centre d'Affaires",
     pricePerNight: 80,
+    type: "space" as const,
   },
   {
     id: "room-3",
     name: "Espace Coworking",
     propertyName: "Centre d'Affaires",
     pricePerNight: 25,
+    type: "space" as const,
+  },
+  {
+    id: "room-4",
+    name: "Chambre Deluxe",
+    propertyName: "Hôtel Luxe",
+    pricePerNight: 200,
+    type: "hotel" as const,
+  },
+  {
+    id: "room-5",
+    name: "Suite Présidentielle",
+    propertyName: "Hôtel Luxe",
+    pricePerNight: 500,
+    type: "hotel" as const,
   },
 ];
 
@@ -72,7 +89,7 @@ export default function DemoPage() {
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-medium rounded-lg"
           >
-            🚀 Essayer l'Interface
+            🚀 Essayer l&apos;Interface
           </Button>
         </div>
 
@@ -98,7 +115,7 @@ export default function DemoPage() {
               Créneaux Horaires
             </h3>
             <p className="text-gray-600">
-              Sélection d'horaires avec choix de durée flexible
+              Sélection d&apos;horaires avec choix de durée flexible
             </p>
           </div>
 
@@ -133,7 +150,7 @@ export default function DemoPage() {
             Prêt à tester ?
           </h3>
           <p className="text-gray-600 mb-6">
-            Cliquez sur le bouton ci-dessous pour découvrir l'interface en
+            Cliquez sur le bouton ci-dessous pour découvrir l&apos;interface en
             action
           </p>
           <Button

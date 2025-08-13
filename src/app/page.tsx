@@ -1,8 +1,14 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { UserMenu } from "@/components/auth/UserMenu";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-airbnb-light-gray to-white">
       {/* Header */}
@@ -18,23 +24,31 @@ export default function HomePage() {
               </h1>
             </div>
             <div className="flex items-center space-x-3">
-              <Link href="/auth/signin">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-300 text-airbnb-charcoal hover:bg-gray-50"
-                >
-                  Se connecter
-                </Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button
-                  className="bg-main hover:bg-main-dark text-white"
-                  size="sm"
-                >
-                  Commencer
-                </Button>
-              </Link>
+              {session ? (
+                // Show user avatar and dropdown when authenticated
+                <UserMenu session={session} />
+              ) : (
+                // Show login/signup buttons when not authenticated
+                <>
+                  <Link href="/auth/signin">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-300 text-airbnb-charcoal hover:bg-gray-50"
+                    >
+                      Se connecter
+                    </Button>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <Button
+                      className="bg-main hover:bg-main-dark text-white"
+                      size="sm"
+                    >
+                      Commencer
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -69,14 +83,25 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-            <Link href="/auth/signup">
-              <Button
-                size="lg"
-                className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium rounded-lg"
-              >
-                ✨ Commencer gratuitement
-              </Button>
-            </Link>
+            {session ? (
+              <Link href="/dashboard">
+                <Button
+                  size="lg"
+                  className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium rounded-lg"
+                >
+                  🚀 Accéder au tableau de bord
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/auth/signup">
+                <Button
+                  size="lg"
+                  className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium rounded-lg"
+                >
+                  ✨ Commencer gratuitement
+                </Button>
+              </Link>
+            )}
             <Link
               href="/demo"
               className="text-airbnb-dark-gray hover:text-airbnb-charcoal text-lg underline"
@@ -258,21 +283,43 @@ export default function HomePage() {
 
         {/* CTA Section */}
         <div className="py-20 text-center">
-          <h3 className="text-3xl font-bold text-airbnb-charcoal mb-6">
-            Prêt à transformer votre gestion ?
-          </h3>
-          <p className="text-xl text-airbnb-dark-gray mb-8 max-w-2xl mx-auto">
-            Rejoignez des milliers d&apos;établissements qui optimisent leurs
-            réservations avec notre plateforme.
-          </p>
-          <Link href="/auth/signup">
-            <Button
-              size="lg"
-              className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium"
-            >
-              Commencer maintenant
-            </Button>
-          </Link>
+          {session ? (
+            <>
+              <h3 className="text-3xl font-bold text-airbnb-charcoal mb-6">
+                Prêt à optimiser vos réservations ?
+              </h3>
+              <p className="text-xl text-airbnb-dark-gray mb-8 max-w-2xl mx-auto">
+                Accédez à votre tableau de bord pour gérer vos propriétés et
+                réservations.
+              </p>
+              <Link href="/dashboard">
+                <Button
+                  size="lg"
+                  className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium"
+                >
+                  Accéder au tableau de bord
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <h3 className="text-3xl font-bold text-airbnb-charcoal mb-6">
+                Prêt à transformer votre gestion ?
+              </h3>
+              <p className="text-xl text-airbnb-dark-gray mb-8 max-w-2xl mx-auto">
+                Rejoignez des milliers d&apos;établissements qui optimisent
+                leurs réservations avec notre plateforme.
+              </p>
+              <Link href="/auth/signup">
+                <Button
+                  size="lg"
+                  className="bg-main hover:bg-main-dark text-white px-8 py-4 text-lg font-medium"
+                >
+                  Commencer maintenant
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </main>
 

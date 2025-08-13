@@ -56,6 +56,7 @@ interface Room {
   name: string;
   propertyName: string;
   pricePerNight: number;
+  type: "hotel" | "space"; // Add room type field
 }
 
 interface Reservation {
@@ -110,7 +111,18 @@ const TIME_SLOTS = [
   "20:00",
 ];
 
-const DURATION_OPTIONS = [
+const HOTEL_DURATION_OPTIONS = [
+  { value: 1, label: "1 nuit" },
+  { value: 2, label: "2 nuits" },
+  { value: 3, label: "3 nuits" },
+  { value: 4, label: "4 nuits" },
+  { value: 5, label: "5 nuits" },
+  { value: 6, label: "6 nuits" },
+  { value: 7, label: "1 semaine" },
+  { value: 14, label: "2 semaines" },
+];
+
+const SPACE_DURATION_OPTIONS = [
   { value: 1, label: "1 heure" },
   { value: 2, label: "2 heures" },
   { value: 3, label: "3 heures" },
@@ -118,8 +130,13 @@ const DURATION_OPTIONS = [
   { value: 5, label: "5 heures" },
   { value: 6, label: "6 heures" },
   { value: 7, label: "7 heures" },
-  { value: 8, label: "Journée complète" },
+  { value: 8, label: "8 heures" },
+  { value: 9, label: "9 heures" },
+  { value: 10, label: "10 heures" },
 ];
+
+// Keep the old one for backward compatibility, but it's now deprecated
+const DURATION_OPTIONS = SPACE_DURATION_OPTIONS;
 
 type BookingStep = "space" | "calendar" | "time" | "details" | "confirmation";
 
@@ -199,6 +216,12 @@ export function ReservationModal({
       if (response.ok) {
         const data = await response.json();
         setExistingReservations(data.reservations || []);
+      } else {
+        console.error(
+          "API response not ok:",
+          response.status,
+          response.statusText
+        );
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des réservations:", error);
@@ -223,7 +246,22 @@ export function ReservationModal({
   };
 
   const isDateAvailable = (date: Date) => {
-    if (!selectedRoom || date < new Date()) return false;
+    if (!selectedRoom) return false;
+
+    // Check if date is today or in the future (comparing only date part, not time)
+    const today = new Date();
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const checkDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+
+    if (checkDate < todayDate) return false;
 
     // Check if there are any available time slots for this date
     const dateString = format(date, "yyyy-MM-dd");
@@ -593,77 +631,256 @@ export function ReservationModal({
 
                   {getAvailableTimeSlots(selectedDate).length > 0 ? (
                     <>
-                      <div className="grid grid-cols-3 gap-3">
-                        {getAvailableTimeSlots(selectedDate).map((time) => (
-                          <button
-                            key={time}
-                            onClick={() => handleTimeSelect(time)}
-                            className={`
-                              px-4 py-3 rounded-lg text-sm font-medium transition-all
-                              ${
-                                selectedTime === time
-                                  ? "bg-gray-800 text-white"
-                                  : "bg-white border border-blue-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
-                              }
-                            `}
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            Choisissez un créneau horaire
+                          </Label>
+                          <Select
+                            value={selectedTime}
+                            onValueChange={handleTimeSelect}
                           >
-                            {time}
-                          </button>
-                        ))}
-                      </div>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Sélectionner un créneau" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getAvailableTimeSlots(selectedDate).map(
+                                (time) => (
+                                  <SelectItem key={time} value={time}>
+                                    {time}
+                                  </SelectItem>
+                                )
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      {selectedTime && (
-                        <div className="pt-4 border-t border-gray-200">
+                        {selectedTime && (
                           <div className="space-y-4">
                             <div>
                               <Label className="text-sm font-medium text-gray-700">
-                                Durée de la réservation
+                                {(() => {
+                                  const selectedRoomData = rooms.find(
+                                    (r) => r.id === selectedRoom
+                                  );
+                                  return selectedRoomData?.type === "hotel"
+                                    ? "Durée du séjour"
+                                    : "Durée de la réservation";
+                                })()}
                               </Label>
                               <div className="grid grid-cols-4 gap-2 mt-2">
-                                {DURATION_OPTIONS.slice(0, 4).map((option) => (
-                                  <button
-                                    key={option.value}
-                                    onClick={() =>
-                                      setSelectedDuration(option.value)
-                                    }
-                                    className={`
-                                      px-3 py-2 rounded-lg text-sm font-medium transition-all
-                                      ${
-                                        selectedDuration === option.value
-                                          ? "bg-blue-600 text-white"
-                                          : "bg-white border border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                                {(() => {
+                                  const selectedRoomData = rooms.find(
+                                    (r) => r.id === selectedRoom
+                                  );
+                                  const durationOptions =
+                                    selectedRoomData?.type === "hotel"
+                                      ? HOTEL_DURATION_OPTIONS
+                                      : SPACE_DURATION_OPTIONS;
+
+                                  return durationOptions.map((option) => (
+                                    <button
+                                      key={option.value}
+                                      onClick={() =>
+                                        setSelectedDuration(option.value)
                                       }
-                                    `}
-                                  >
-                                    {option.label}
-                                  </button>
-                                ))}
+                                      className={`
+                                        px-3 py-2 rounded-lg text-sm font-medium transition-all
+                                        ${
+                                          selectedDuration === option.value
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-white border border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                                        }
+                                      `}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  ));
+                                })()}
                               </div>
                             </div>
+
+                            {/* Cost Calculation */}
+                            {selectedRoom && (
+                              <div className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-gray-700">
+                                    Calcul du coût
+                                  </span>
+                                  <span className="text-lg font-semibold text-gray-900">
+                                    {(() => {
+                                      const selectedRoomData = rooms.find(
+                                        (r) => r.id === selectedRoom
+                                      );
+                                      if (!selectedRoomData) return "N/A";
+
+                                      let totalCost: number;
+                                      let rateLabel: string;
+
+                                      if (selectedRoomData.type === "hotel") {
+                                        // Hotel: price per night
+                                        totalCost =
+                                          selectedRoomData.pricePerNight *
+                                          selectedDuration;
+                                        rateLabel = "Prix par nuit";
+                                      } else {
+                                        // Space: price per hour (converted from daily rate)
+                                        const hourlyRate =
+                                          selectedRoomData.pricePerNight / 24;
+                                        totalCost =
+                                          hourlyRate * selectedDuration;
+                                        rateLabel = "Prix par heure";
+                                      }
+
+                                      return formatCurrency(
+                                        totalCost,
+                                        currency
+                                      );
+                                    })()}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-600 space-y-1">
+                                  <div className="flex justify-between">
+                                    <span>
+                                      {(() => {
+                                        const selectedRoomData = rooms.find(
+                                          (r) => r.id === selectedRoom
+                                        );
+                                        if (
+                                          selectedRoomData?.type === "hotel"
+                                        ) {
+                                          return "Prix par nuit:";
+                                        } else {
+                                          return "Prix par heure:";
+                                        }
+                                      })()}
+                                    </span>
+                                    <span>
+                                      {(() => {
+                                        const selectedRoomData = rooms.find(
+                                          (r) => r.id === selectedRoom
+                                        );
+                                        if (!selectedRoomData) return "N/A";
+
+                                        if (selectedRoomData.type === "hotel") {
+                                          return formatCurrency(
+                                            selectedRoomData.pricePerNight,
+                                            currency
+                                          );
+                                        } else {
+                                          const hourlyRate =
+                                            selectedRoomData.pricePerNight / 24;
+                                          return formatCurrency(
+                                            hourlyRate,
+                                            currency
+                                          );
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>
+                                      {(() => {
+                                        const selectedRoomData = rooms.find(
+                                          (r) => r.id === selectedRoom
+                                        );
+                                        if (
+                                          selectedRoomData?.type === "hotel"
+                                        ) {
+                                          return "Nuits:";
+                                        } else {
+                                          return "Heures:";
+                                        }
+                                      })()}
+                                    </span>
+                                    <span>
+                                      {(() => {
+                                        const selectedRoomData = rooms.find(
+                                          (r) => r.id === selectedRoom
+                                        );
+                                        if (
+                                          selectedRoomData?.type === "hotel"
+                                        ) {
+                                          return `${selectedDuration} nuit${
+                                            selectedDuration > 1 ? "s" : ""
+                                          }`;
+                                        } else {
+                                          return `${selectedDuration} heure${
+                                            selectedDuration > 1 ? "s" : ""
+                                          }`;
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Espace:</span>
+                                    <span>
+                                      {(() => {
+                                        const selectedRoomData = rooms.find(
+                                          (r) => r.id === selectedRoom
+                                        );
+                                        return selectedRoomData
+                                          ? `${selectedRoomData.propertyName} - ${selectedRoomData.name}`
+                                          : "N/A";
+                                      })()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             <div className="flex items-center justify-between">
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2 text-gray-600">
                                   <Clock className="h-4 w-4" />
                                   <span>
-                                    Durée: {selectedDuration} heure
-                                    {selectedDuration > 1 ? "s" : ""}
+                                    {(() => {
+                                      const selectedRoomData = rooms.find(
+                                        (r) => r.id === selectedRoom
+                                      );
+                                      if (selectedRoomData?.type === "hotel") {
+                                        return `Durée: ${selectedDuration} nuit${
+                                          selectedDuration > 1 ? "s" : ""
+                                        }`;
+                                      } else {
+                                        return `Durée: ${selectedDuration} heure${
+                                          selectedDuration > 1 ? "s" : ""
+                                        }`;
+                                      }
+                                    })()}
                                   </span>
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                  {selectedTime} -{" "}
                                   {(() => {
-                                    const [hours, minutes] = selectedTime
-                                      .split(":")
-                                      .map(Number);
-                                    const endTime = new Date();
-                                    endTime.setHours(
-                                      hours + selectedDuration,
-                                      minutes,
-                                      0,
-                                      0
+                                    const selectedRoomData = rooms.find(
+                                      (r) => r.id === selectedRoom
                                     );
-                                    return format(endTime, "HH:mm");
+                                    if (selectedRoomData?.type === "hotel") {
+                                      // For hotels, show check-in date and duration
+                                      return `${
+                                        selectedDate
+                                          ? format(selectedDate, "dd/MM/yyyy")
+                                          : ""
+                                      } - ${selectedDuration} nuit${
+                                        selectedDuration > 1 ? "s" : ""
+                                      }`;
+                                    } else {
+                                      // For spaces, show time range
+                                      const [hours, minutes] = selectedTime
+                                        .split(":")
+                                        .map(Number);
+                                      const endTime = new Date();
+                                      endTime.setHours(
+                                        hours + selectedDuration,
+                                        minutes,
+                                        0,
+                                        0
+                                      );
+                                      return `${selectedTime} - ${format(
+                                        endTime,
+                                        "HH:mm"
+                                      )}`;
+                                    }
                                   })()}
                                 </div>
                               </div>
@@ -675,8 +892,8 @@ export function ReservationModal({
                               </Button>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </>
                   ) : (
                     <div className="text-center py-8">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ interface PropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: "create" | "edit";
+  onPropertyTypeChange?: (propertyType: string) => void;
 }
 
 export function PropertyModal({
@@ -43,6 +44,7 @@ export function PropertyModal({
   isOpen,
   onClose,
   mode,
+  onPropertyTypeChange,
 }: PropertyModalProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,28 @@ export function PropertyModal({
     propertyType: property?.propertyType || "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      if (property && mode === "edit") {
+        setFormData({
+          name: property.name || "",
+          address: property.address || "",
+          description: property.description || "",
+          propertyType: property.propertyType || "",
+        });
+      } else if (mode === "create") {
+        setFormData({
+          name: "",
+          address: "",
+          description: "",
+          propertyType: "",
+        });
+      }
+      setErrors({});
+    }
+  }, [isOpen, property, mode]);
 
   const propertyTypes = [
     {
@@ -74,6 +98,11 @@ export function PropertyModal({
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+
+    // Notify parent component when property type changes
+    if (field === "propertyType" && onPropertyTypeChange) {
+      onPropertyTypeChange(value);
     }
   };
 
@@ -140,6 +169,7 @@ export function PropertyModal({
   const handleClose = () => {
     if (!isLoading) {
       onClose();
+      // Reset form data
       setFormData({ name: "", address: "", description: "", propertyType: "" });
       setErrors({});
     }
@@ -180,9 +210,9 @@ export function PropertyModal({
             </Label>
             <Select
               value={formData.propertyType}
-              onValueChange={(value) =>
-                handleInputChange("propertyType", value)
-              }
+              onValueChange={(value) => {
+                handleInputChange("propertyType", value);
+              }}
               disabled={isLoading}
             >
               <SelectTrigger

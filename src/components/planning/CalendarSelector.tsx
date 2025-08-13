@@ -57,7 +57,11 @@ interface CalendarConfig {
   };
 }
 
-export function CalendarSelector() {
+interface CalendarSelectorProps {
+  propertyId?: string;
+}
+
+export function CalendarSelector({ propertyId }: CalendarSelectorProps = {}) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
   const [configs, setConfigs] = useState<CalendarConfig[]>([]);

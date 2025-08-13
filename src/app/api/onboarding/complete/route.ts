@@ -26,9 +26,6 @@ export async function POST(request: NextRequest) {
       propertyName,
       propertyAddress,
       propertyType,
-      unitName,
-      capacity,
-      pricePerNight,
     } = data;
 
     console.log("👥 Vérification de l'utilisateur en base...");
@@ -105,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("⚙️ Mise à jour des préférences utilisateur...");
-    // Mettre à jour les préférences utilisateur
+    // Mettre à jour les préférences utilisateur (keep establishmentType for backwards compatibility)
     await prisma.userPreferences.upsert({
       where: { userId: session.user.id },
       update: {
@@ -138,56 +135,53 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("🏠 Création de la première propriété...");
-    // Créer la première propriété
+    // Créer la première propriété avec le type d'établissement spécifique
     const property = await prisma.property.create({
       data: {
         organisationId: userOrganisation.organisationId,
         name: propertyName,
         address: propertyAddress,
         propertyType: propertyType,
+        establishmentType: establishmentType, // Set property-specific establishment type
       },
     });
     console.log("✅ Propriété créée:", property.name);
 
-    console.log("🛏️ Création de la première chambre/espace...");
-    // Créer la première chambre/espace
-    const room = await prisma.room.create({
+    // Create default property settings
+    console.log("⚙️ Création des paramètres par défaut de la propriété...");
+    await prisma.propertySettings.create({
       data: {
         propertyId: property.id,
-        name: unitName,
-        capacity: capacity,
-        pricePerNight: pricePerNight,
-        roomType: establishmentType === "hotel" ? "standard" : "meeting",
+        currency: "XOF",
+        timezone: "Europe/Paris",
+        language: preferredLanguage,
+        // Set appropriate default times based on establishment type
+        defaultCheckinTime: establishmentType === "hotel" ? "15:00" : "08:00",
+        defaultCheckoutTime: establishmentType === "hotel" ? "11:00" : "18:00",
       },
     });
-    console.log("✅ Chambre/espace créé:", room.name);
+    console.log("✅ Paramètres de propriété créés");
 
-    console.log("📅 Création des disponibilités...");
-    // Créer les disponibilités par défaut pour les 90 prochains jours
-    const availabilities = [];
-    const startDate = new Date();
-    for (let i = 0; i < 90; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      availabilities.push({
-        roomId: room.id,
-        startDate: date,
-        endDate: date,
-        status: "AVAILABLE" as const,
-      });
-    }
-
-    await prisma.availability.createMany({
-      data: availabilities,
+    // Set this property as the user's last active property
+    console.log("🎯 Définition de la propriété comme propriété active...");
+    await prisma.userPreferences.update({
+      where: { userId: session.user.id },
+      data: {
+        lastActivePropertyId: property.id,
+      },
     });
+    console.log("✅ Propriété définie comme active");
 
     console.log("✅ Onboarding terminé avec succès !");
 
     return NextResponse.json({
       success: true,
       message: "Onboarding complété avec succès",
-      property,
-      room,
+      property: {
+        id: property.id,
+        name: property.name,
+        establishmentType: property.establishmentType,
+      },
     });
   } catch (error) {
     console.error("💥 Erreur lors de l'onboarding:", error);

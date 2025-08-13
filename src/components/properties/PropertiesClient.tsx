@@ -43,6 +43,39 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(
     null
   );
+  const [currentPropertyType, setCurrentPropertyType] = useState<string>("");
+
+  // Get dynamic terminology based on property type
+  const getTerminology = (propertyType: string) => {
+    switch (propertyType) {
+      case "hotel":
+        return {
+          unit: "chambres",
+          unitSingular: "chambre",
+          addButton: "Ajouter une chambre",
+          emptyMessage: "Aucune chambre trouvée",
+          startMessage: "Commencez par ajouter votre première chambre",
+        };
+      case "espace":
+        return {
+          unit: "espaces",
+          unitSingular: "espace",
+          addButton: "Ajouter un espace",
+          emptyMessage: "Aucun espace trouvé",
+          startMessage: "Commencez par ajouter votre premier espace",
+        };
+      default:
+        return {
+          unit: "unités",
+          unitSingular: "unité",
+          addButton: "Ajouter une unité",
+          emptyMessage: "Aucune unité trouvée",
+          startMessage: "Commencez par ajouter votre première unité",
+        };
+    }
+  };
+
+  const terminology = getTerminology(currentPropertyType);
 
   const handleEditClick = (property: PropertyData) => {
     setSelectedProperty(property);
@@ -61,13 +94,16 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
     setSelectedProperty(null);
   };
 
-  const convertToModalProperty = (property: PropertyData) => ({
-    id: property.id,
-    name: property.name,
-    address: property.address || undefined,
-    description: property.description || undefined,
-    propertyType: property.propertyType || undefined,
-  });
+  const convertToModalProperty = (property: PropertyData) => {
+    const converted = {
+      id: property.id,
+      name: property.name,
+      address: property.address || undefined,
+      description: property.description || undefined,
+      propertyType: property.propertyType || undefined,
+    };
+    return converted;
+  };
 
   const getPropertyTypeInfo = (propertyType: string | null | undefined) => {
     switch (propertyType) {
@@ -100,7 +136,7 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
             Propriétés
           </h1>
           <p className="text-airbnb-dark-gray mt-2">
-            Gérez vos propriétés et leurs caractéristiques
+            Gérez vos propriétés et leurs {terminology.unit}
           </p>
         </div>
         <Button
@@ -117,10 +153,10 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
         <div className="text-center py-16">
           <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-airbnb-charcoal mb-2">
-            Aucune propriété
+            {terminology.emptyMessage}
           </h3>
           <p className="text-airbnb-dark-gray mb-6">
-            Commencez par ajouter votre première propriété
+            {terminology.startMessage}
           </p>
           <Button
             variant="default"
@@ -128,7 +164,7 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
             onClick={() => setIsCreateModalOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Ajouter une propriété
+            {terminology.addButton}
           </Button>
         </div>
       ) : (
@@ -168,8 +204,8 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
                       </p>
                     )}
                     <div className="text-sm text-airbnb-dark-gray">
-                      {property.roomCount} unité
-                      {property.roomCount > 1 ? "s" : ""}
+                      {property.roomCount} {terminology.unit}
+                      {property.roomCount > 1 ? "" : ""}
                     </div>
                   </div>
 
@@ -213,6 +249,7 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
         isOpen={isCreateModalOpen}
         onClose={handleCloseModals}
         mode="create"
+        onPropertyTypeChange={setCurrentPropertyType}
       />
 
       {selectedProperty && (
@@ -222,6 +259,7 @@ export function PropertiesClient({ initialProperties }: PropertiesClientProps) {
             isOpen={isEditModalOpen}
             onClose={handleCloseModals}
             mode="edit"
+            onPropertyTypeChange={setCurrentPropertyType}
           />
           <DeletePropertyModal
             property={selectedProperty}

@@ -16,9 +16,64 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, address, description, propertyType } = body;
+    const { name, address, description, propertyType, establishmentType } =
+      body;
 
-    // Validation
+    // If only establishmentType is being updated
+    if (
+      establishmentType &&
+      !name &&
+      !address &&
+      !description &&
+      !propertyType
+    ) {
+      // Validate establishment type
+      const validEstablishmentTypes = ["hotel", "espace"];
+      if (!validEstablishmentTypes.includes(establishmentType)) {
+        return NextResponse.json(
+          { error: "Type d'établissement invalide" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier que la propriété appartient à l'utilisateur
+      const userOrganisation = await prisma.userOrganisation.findFirst({
+        where: { userId: session.user.id },
+      });
+
+      if (!userOrganisation) {
+        return NextResponse.json(
+          { error: "Organisation introuvable" },
+          { status: 404 }
+        );
+      }
+
+      const existingProperty = await prisma.property.findFirst({
+        where: {
+          id,
+          organisationId: userOrganisation.organisationId,
+        },
+      });
+
+      if (!existingProperty) {
+        return NextResponse.json(
+          { error: "Propriété introuvable" },
+          { status: 404 }
+        );
+      }
+
+      // Mettre à jour seulement le type d'établissement
+      const property = await prisma.property.update({
+        where: { id },
+        data: {
+          establishmentType: establishmentType.trim(),
+        },
+      });
+
+      return NextResponse.json({ property });
+    }
+
+    // Original validation for full property updates
     if (!name || !name.trim()) {
       return NextResponse.json(
         { error: "Le nom de la propriété est requis" },

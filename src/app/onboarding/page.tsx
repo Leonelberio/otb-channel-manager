@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type OnboardingStep = 1 | 2 | 3 | 4;
+type OnboardingStep = 1 | 2 | 3;
 
 interface OnboardingData {
   // Étape 1 - Informations de base
@@ -20,12 +20,6 @@ interface OnboardingData {
   propertyName: string;
   propertyAddress: string;
   propertyType: string;
-
-  // Étape 4 - Première unité
-  unitName: string;
-  capacity: number;
-  pricePerNight: number;
-  equipments: string[];
 }
 
 export default function OnboardingPage() {
@@ -40,10 +34,6 @@ export default function OnboardingPage() {
     propertyName: "",
     propertyAddress: "",
     propertyType: "",
-    unitName: "",
-    capacity: 2,
-    pricePerNight: 100,
-    equipments: [],
   });
 
   useEffect(() => {
@@ -67,7 +57,7 @@ export default function OnboardingPage() {
   }
 
   function nextStep() {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep((prev) => (prev + 1) as OnboardingStep);
     }
   }
@@ -88,7 +78,13 @@ export default function OnboardingPage() {
       });
 
       if (response.ok) {
-        router.push("/dashboard");
+        const result = await response.json();
+        // Redirect to the created property page
+        if (result.property?.id) {
+          router.push(`/dashboard/properties/${result.property.id}`);
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         console.error("Erreur lors de l'onboarding");
       }
@@ -99,10 +95,6 @@ export default function OnboardingPage() {
     }
   }
 
-  const getUnitTerminology = () => {
-    return onboardingData.establishmentType === "hotel" ? "chambre" : "espace";
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-airbnb-light-gray to-white">
       <div className="container mx-auto px-4 py-8">
@@ -110,7 +102,7 @@ export default function OnboardingPage() {
           {/* Progress indicator */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              {[1, 2, 3, 4].map((step) => (
+              {[1, 2, 3].map((step) => (
                 <div
                   key={step}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -126,7 +118,7 @@ export default function OnboardingPage() {
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-main h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / 4) * 100}%` }}
+                style={{ width: `${(currentStep / 3) * 100}%` }}
               />
             </div>
           </div>
@@ -135,11 +127,8 @@ export default function OnboardingPage() {
             <div className="p-6">
               <h2 className="text-2xl text-center text-airbnb-charcoal mb-6 font-semibold">
                 {currentStep === 1 && "Bienvenue ! Commençons par les bases"}
-                {currentStep === 2 &&
-                  "Quel type d&apos;établissement gérez-vous ?"}
+                {currentStep === 2 && "Quel type d'établissement gérez-vous ?"}
                 {currentStep === 3 && "Créez votre première propriété"}
-                {currentStep === 4 &&
-                  `Ajoutez votre première ${getUnitTerminology()}`}
               </h2>
             </div>
 
@@ -197,8 +186,8 @@ export default function OnboardingPage() {
                           Hôtel
                         </h3>
                         <p className="text-sm text-airbnb-dark-gray">
-                          Gérez vos chambres d&apos;hôtel, suites et espaces
-                          d&apos;hébergement
+                          Gérez vos chambres d'hôtel, suites et espaces
+                          d'hébergement
                         </p>
                       </div>
                     </div>
@@ -273,7 +262,7 @@ export default function OnboardingPage() {
                         <>
                           <option value="hotel-boutique">Hôtel Boutique</option>
                           <option value="hotel-business">
-                            Hôtel d&apos;Affaires
+                            Hôtel d'Affaires
                           </option>
                           <option value="hotel-resort">Resort</option>
                           <option value="auberge">Auberge</option>
@@ -291,55 +280,6 @@ export default function OnboardingPage() {
                 </>
               )}
 
-              {/* Étape 4 - Première unité */}
-              {currentStep === 4 && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-airbnb-charcoal mb-2">
-                      Nom de la {getUnitTerminology()}
-                    </label>
-                    <Input
-                      value={onboardingData.unitName}
-                      onChange={(e) => updateData("unitName", e.target.value)}
-                      placeholder={
-                        onboardingData.establishmentType === "hotel"
-                          ? "Chambre Standard 101"
-                          : "Espace Réunion A"
-                      }
-                      className="airbnb-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-airbnb-charcoal mb-2">
-                      Capacité (nombre de personnes)
-                    </label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={onboardingData.capacity}
-                      onChange={(e) =>
-                        updateData("capacity", parseInt(e.target.value))
-                      }
-                      className="airbnb-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-airbnb-charcoal mb-2">
-                      Prix par nuit/jour (€)
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={onboardingData.pricePerNight}
-                      onChange={(e) =>
-                        updateData("pricePerNight", parseFloat(e.target.value))
-                      }
-                      className="airbnb-input"
-                    />
-                  </div>
-                </>
-              )}
-
               {/* Navigation buttons */}
               <div className="flex justify-between pt-6">
                 <Button
@@ -350,7 +290,7 @@ export default function OnboardingPage() {
                   Précédent
                 </Button>
 
-                {currentStep < 4 ? (
+                {currentStep < 3 ? (
                   <Button
                     variant="main"
                     onClick={nextStep}
@@ -358,8 +298,8 @@ export default function OnboardingPage() {
                       (currentStep === 1 && !onboardingData.organizationName) ||
                       (currentStep === 3 &&
                         (!onboardingData.propertyName ||
-                          !onboardingData.propertyAddress)) ||
-                      (currentStep === 4 && !onboardingData.unitName)
+                          !onboardingData.propertyAddress ||
+                          !onboardingData.propertyType))
                     }
                   >
                     Suivant
@@ -368,11 +308,16 @@ export default function OnboardingPage() {
                   <Button
                     variant="main"
                     onClick={completeOnboarding}
-                    disabled={isLoading || !onboardingData.unitName}
+                    disabled={
+                      isLoading ||
+                      !onboardingData.propertyName ||
+                      !onboardingData.propertyAddress ||
+                      !onboardingData.propertyType
+                    }
                   >
                     {isLoading
-                      ? "Finalisation..."
-                      : "Terminer la configuration"}
+                      ? "Création de votre propriété..."
+                      : "Créer ma propriété"}
                   </Button>
                 )}
               </div>

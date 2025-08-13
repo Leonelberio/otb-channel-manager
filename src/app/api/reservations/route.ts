@@ -14,6 +14,34 @@ export async function GET(request: NextRequest) {
     // Récupérer les paramètres de requête
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("roomId");
+    const propertyId = searchParams.get("propertyId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    // Construire les filtres pour les propriétés
+    const propertyFilter = propertyId ? { id: propertyId } : undefined;
+
+    // Construire les filtres pour les réservations
+    const reservationFilters: any = {
+      orderBy: {
+        createdAt: "desc",
+      },
+    };
+
+    // Ajouter les filtres de date si fournis
+    if (startDate || endDate) {
+      reservationFilters.where = {};
+      if (startDate) {
+        reservationFilters.where.startDate = {
+          gte: new Date(startDate),
+        };
+      }
+      if (endDate) {
+        reservationFilters.where.endDate = {
+          lte: new Date(endDate),
+        };
+      }
+    }
 
     // Récupérer l'organisation de l'utilisateur
     const userOrganisation = await prisma.userOrganisation.findFirst({
@@ -27,9 +55,7 @@ export async function GET(request: NextRequest) {
                   where: roomId ? { id: roomId } : undefined,
                   include: {
                     reservations: {
-                      orderBy: {
-                        createdAt: "desc",
-                      },
+                      ...reservationFilters,
                     },
                   },
                 },

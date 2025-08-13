@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Euro, Loader2 } from "lucide-react";
+import { Users, Loader2 } from "lucide-react";
 import {
   formatCurrency,
   getCurrencySymbol,

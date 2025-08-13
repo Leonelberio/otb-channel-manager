@@ -50,6 +50,7 @@ interface ReservationsClientProps {
   initialReservations: Reservation[];
   rooms: Room[];
   currency: Currency;
+  propertyId?: string;
 }
 
 const RESERVATION_STATUSES = [
@@ -71,6 +72,7 @@ export function ReservationsClient({
   initialReservations,
   rooms,
   currency: initialCurrency,
+  propertyId,
 }: ReservationsClientProps) {
   const [reservations, setReservations] = useState(initialReservations);
   const [currency, setCurrency] = useState<Currency>(initialCurrency);

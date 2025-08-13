@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Plus,
   Users,
-  Euro,
+  Coins,
   BedDouble,
   Edit,
   Trash2,
@@ -65,11 +66,15 @@ export function RoomsClient({
   unitTerminology,
   currency,
 }: RoomsClientProps) {
+  const router = useRouter();
   const [rooms] = useState<RoomData[]>(initialRooms);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null);
+
+  // Get property ID from the first room (since all rooms belong to the same property on this page)
+  const propertyId = rooms.length > 0 ? rooms[0].propertyId : null;
 
   const handleEditClick = (room: RoomData) => {
     console.log("🔍 handleEditClick - room original:", room);
@@ -215,7 +220,7 @@ export function RoomsClient({
 
                   {room.pricePerNight && (
                     <div className="flex items-center text-lg font-semibold text-main mb-3">
-                      <Euro className="h-4 w-4 mr-1" />
+                      <Coins className="h-4 w-4 mr-1" />
                       <PriceDisplay
                         amount={room.pricePerNight}
                         currency={currency}
@@ -307,7 +312,14 @@ export function RoomsClient({
               </div>
 
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() =>
+                    router.push(`/dashboard/properties/${propertyId}/calendar`)
+                  }
+                >
                   Planning
                 </Button>
                 <Button
