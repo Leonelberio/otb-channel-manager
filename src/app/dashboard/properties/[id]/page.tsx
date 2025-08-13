@@ -63,18 +63,25 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       property={{
         id: property.id,
         name: property.name,
-        establishmentType: property.establishmentType,
+        establishmentType: (property as any).establishmentType,
         address: property.address,
         description: property.description,
-        rooms: property.rooms.map((room) => ({
+        rooms: (property as any).rooms.map((room: any) => ({
           id: room.id,
           name: room.name,
           capacity: room.capacity,
           pricePerNight: room.pricePerNight ? Number(room.pricePerNight) : null,
-          reservations: room.reservations,
+          reservations: room.reservations.map((reservation: any) => ({
+            id: reservation.id,
+            status: reservation.status,
+            totalPrice: reservation.totalPrice
+              ? Number(reservation.totalPrice)
+              : null,
+            createdAt: reservation.createdAt,
+          })),
           equipments: room.equipments,
         })),
-        propertySettings: property.propertySettings,
+        propertySettings: (property as any).propertySettings,
       }}
       allProperties={allProperties}
     />
