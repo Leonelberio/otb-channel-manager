@@ -88,9 +88,9 @@ export function Sidebar({
       const propertyId = propertyMatch[1];
       const foundProperty = properties.find((p) => p.id === propertyId);
 
-      // If property not found in current list, refetch properties
+      // If property not found in current list, refetch properties immediately
       if (!foundProperty) {
-        fetchProperties();
+        fetchProperties(true); // Force refresh
       }
     }
   }, [pathname, properties]);
@@ -101,15 +101,17 @@ export function Sidebar({
       pathname.includes("/dashboard/properties/") &&
       !pathname.endsWith("/properties")
     ) {
-      // Force refresh to ensure we have the latest data
-      fetchProperties();
+      // Force refresh to ensure we have the latest data, especially when coming from properties page
+      fetchProperties(true);
     }
   }, [pathname]);
 
-  const fetchProperties = async () => {
-    // Avoid fetching if already in progress or fetched recently (within 30 seconds)
+  const fetchProperties = async (forceRefresh = false) => {
+    // Avoid fetching if already in progress or fetched recently (within 5 seconds) unless forced
     const now = Date.now();
-    if (isFetchingProperties || now - lastFetchTime < 30000) {
+    const cacheTime = forceRefresh ? 0 : 5000; // Reduce cache time to 5 seconds, or bypass if forced
+
+    if (isFetchingProperties || now - lastFetchTime < cacheTime) {
       return;
     }
 
