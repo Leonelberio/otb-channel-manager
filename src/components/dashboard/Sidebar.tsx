@@ -104,16 +104,7 @@ export function Sidebar({
     }
   }, [pathname, properties]);
 
-  // Also refresh properties when coming from properties listing page
-  useEffect(() => {
-    if (
-      pathname.includes("/dashboard/properties/") &&
-      !pathname.endsWith("/properties")
-    ) {
-      // Always refresh to ensure we have the latest data
-      fetchProperties();
-    }
-  }, [pathname]);
+  // Removed the useEffect that always refetches on property pages
 
   const fetchProperties = async () => {
     // Simple protection against multiple simultaneous fetches
