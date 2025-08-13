@@ -70,12 +70,17 @@ export default async function DashboardLayout({
       roomCount: property.rooms.length,
     })) || [];
 
+  // Sanitize organisation to plain object with only needed fields for client component
+  const organisationForSidebar = organisation
+    ? { id: organisation.id, name: organisation.name }
+    : undefined;
+
   console.log("🏗️ Layout rendering sidebar with properties:", properties);
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar
-        organisation={organisation}
+        organisation={organisationForSidebar}
         userPreferences={userPreferences}
         properties={properties}
         hideInitially={hideSidebar}
